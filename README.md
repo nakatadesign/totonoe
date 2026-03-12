@@ -1,8 +1,8 @@
 # totonoe
 
-**アプリ・システム開発のための AI 開発ワークフロー**
+**AIエージェントが実装・評価を分担する開発ループ設計**
 
-Claude Code と Codex CLI を組み合わせた、リファレンステンプレートです。
+Claude Code を実装役、Codex CLI を主評価役、Gemini を fallback と Shadow Mode 時のセカンダリ評価役として分担させるための、開発ループ設計テンプレートです。
 
 実装は Claude Code、評価は Codex——役割を分けることで、同じ AI が自分の出力を採点する「セルフ採点問題」を回避します。品質基準を満たすまでループが続き、完了の判断は厳格な条件に基づきます。
 
@@ -160,21 +160,21 @@ Gemini は totonoe の標準構成に含まれる補助 provider です。ただ
 
 ---
 
-## totonoe の Shadow Mode について
+## Shadow Mode について
 
-`config.json` で `reviewer.mode: "shadow"` を設定すると、totonoe の Shadow Mode が有効になります。
+通常の fallback モードに加え、`config.json` で `reviewer.mode: "shadow"` を設定すると Shadow Mode が有効になります。
 
-通常の fallback モードでは Codex が使えないときだけ Gemini に切り替えますが、Shadow Mode では Codex（primary）と Gemini（shadow）を**常に両方**動かし、比較用の結果を round ディレクトリに保存します。ただし `done` 判定や state 遷移には primary（Codex）の結果だけを使います。
+Shadow Mode では Codex（primary）の評価に加えて Gemini（shadow）も並走させ、比較用の結果を round ディレクトリに保存します。ただし `done` 判定や state 遷移には primary の結果だけを使います。
 
-目的は「どちらが何を見落とすか」を観測することです。将来的に両者の評価を正式採用する consensus mode への布石として位置づけています。
+Shadow Mode の目的は「どちらが何を見落とすか」を観測することです。将来の consensus mode（両者の評価を正式採用する設計）への布石として機能します。
 
 ---
 
-## Claude の Auto Mode について
+## Auto Mode について
 
-Claude Code 自体が持つ実験的機能として、Auto Mode（`--enable-auto-mode`）があります。操作ごとのリスクを Claude が自動判断しながら進める機能で、通常は人間が確認するステップを省略できます。
+Claude Code の Auto Mode（`--enable-auto-mode`）は、操作ごとのリスクを Claude が判断しながら自動で進める実験的機能です。
 
-totonoe の標準的な使い方では Auto Mode を前提にしていません。隔離された開発環境での長時間実行など、用途を絞って使うことを推奨します。なお、totonoe 側の完了判定（厳格な4条件）は Auto Mode でも変わらず有効です。
+totonoe の標準的な使い方では Auto Mode を前提にしていません。隔離された開発環境での長時間実行など、用途を絞って使うことを推奨します。完了判定の厳格な4条件は Auto Mode でも変わらず有効です。
 
 ---
 
