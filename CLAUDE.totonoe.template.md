@@ -2,6 +2,14 @@
 
 このリポジトリでは `totonoe` を使って開発ループを回します。Claude Code がコントローラーとなり、シェルスクリプト経由で Codex CLI を呼び出して進行を制御します。ランタイムパスは `.claude/totonoe/` です。
 
+### 実行モードの前提
+
+`totonoe` の長時間ループ運用は、隔離された開発環境で `claude --dangerously-skip-permissions` を使う前提で考えてよい。
+`claude --permission-mode acceptEdits` のような控えめなモードでも、`totonoe` のような定型スクリプト連続実行では確認が残りやすく、長いループでは止まりやすい。
+
+ただし、これは安全な隔離環境でのみ推奨する。
+本番 credential・個人ファイル・広い権限を持つ環境では、無確認実行を前提にしないこと。
+
 ### 4つの役割
 
 - **Manager**（`.claude/agents/MANAGER.md`）: ループの最終決定・指揮を担う。実装は行わない
