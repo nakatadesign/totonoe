@@ -25,6 +25,7 @@ ai_event_json() {
   local model="$4"
   local result="$5"
   local reason="$6"
+  local provider_role="${7:-primary}"
 
   jq -nc \
     --arg ts "$(now_utc)" \
@@ -34,12 +35,14 @@ ai_event_json() {
     --arg result "${result}" \
     --arg reason "${reason}" \
     --arg model "${model}" \
+    --arg provider_role "${provider_role}" \
     '{
       ts: $ts,
       type: "ai_exec",
       job: $job,
       role: $role,
       provider: $provider,
+      provider_role: $provider_role,
       model: (if $model == "" then null else $model end),
       result: $result,
       reason: $reason
@@ -300,6 +303,7 @@ main() {
   require_jq_min_version 1.6
 
   local role="" prompt_file="" schema_file="" output_file="" job_name=""
+  local provider_role_arg="primary"
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -321,6 +325,10 @@ main() {
         ;;
       --job-name)
         job_name="${2:-}"
+        shift 2
+        ;;
+      --provider-role)
+        provider_role_arg="${2:-primary}"
         shift 2
         ;;
       --help|-h)
@@ -383,6 +391,11 @@ main() {
     provider_mode="gemini_cooldown"
   fi
 
+  # shadow role の場合は Gemini を直接使う（現時点で shadow provider は Gemini 固定）
+  if [ "${provider_role_arg}" = "shadow" ]; then
+    provider_mode="shadow_gemini"
+  fi
+
   codex_output="$(mktemp)"
   codex_stderr="$(mktemp)"
   gemini_payload="$(mktemp)"
@@ -394,26 +407,54 @@ main() {
   local result_source="" result_provider="" result_model="" result_codex_reason=""
   local final_event_reason="" final_event_result=""
 
-  if [ "${provider_mode}" = "gemini_cooldown" ]; then
+  if [ "${provider_mode}" = "shadow_gemini" ]; then
+    require_cmd curl
+    [ -n "${GEMINI_API_KEY:-}" ] || die "GEMINI_API_KEY is required when shadow mode uses Gemini"
+
+    gemini_request_payload "${prompt_path}" "${schema_path}" > "${gemini_payload}"
+    if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-pro}"; then
+      append_event_log_safe "$(events_path "${job_name}")" \
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure" "shadow")"
+      die "gemini request failed in shadow mode"
+    fi
+
+    if ! gemini_parse_json_text "${gemini_response}" "${gemini_parsed}"; then
+      append_event_log_safe "$(events_path "${job_name}")" \
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response" "shadow")"
+      die "gemini shadow response did not contain valid JSON"
+    fi
+
+    validate_role_json "${role}" "${gemini_parsed}" || {
+      append_event_log_safe "$(events_path "${job_name}")" \
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed" "shadow")"
+      die "gemini shadow response failed shape check"
+    }
+
+    result_source="${gemini_parsed}"
+    result_provider="gemini"
+    result_model="${GEMINI_MODEL:-gemini-2.5-pro}"
+    final_event_reason="shadow"
+    final_event_result="success"
+  elif [ "${provider_mode}" = "gemini_cooldown" ]; then
     require_cmd curl
     [ -n "${GEMINI_API_KEY:-}" ] || die "GEMINI_API_KEY is required when Gemini fallback is used"
 
     gemini_request_payload "${prompt_path}" "${schema_path}" > "${gemini_payload}"
     if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-pro}"; then
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure" "${provider_role_arg}")"
       die "gemini request failed during cooldown"
     fi
 
     if ! gemini_parse_json_text "${gemini_response}" "${gemini_parsed}"; then
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response" "${provider_role_arg}")"
       die "gemini response did not contain valid JSON"
     fi
 
     validate_role_json "${role}" "${gemini_parsed}" || {
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed" "${provider_role_arg}")"
       die "gemini response failed shape check"
     }
 
@@ -427,13 +468,13 @@ main() {
     if codex_exec "${role}" "${prompt_path}" "${schema_path}" "${codex_output}" "${codex_stderr}"; then
       if ! jq -e . "${codex_output}" >/dev/null 2>&1; then
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "codex" "${CODEX_MODEL:-}" "failed" "invalid_json")"
+          "$(ai_event_json "${job_name}" "${role}" "codex" "${CODEX_MODEL:-}" "failed" "invalid_json" "${provider_role_arg}")"
         die "codex returned invalid JSON"
       fi
 
       validate_role_json "${role}" "${codex_output}" || {
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "codex" "${CODEX_MODEL:-}" "failed" "shape_check_failed")"
+          "$(ai_event_json "${job_name}" "${role}" "codex" "${CODEX_MODEL:-}" "failed" "shape_check_failed" "${provider_role_arg}")"
         die "codex output failed shape check"
       }
 
@@ -445,7 +486,7 @@ main() {
     else
       result_codex_reason="$(codex_failure_reason "${codex_output}" "${codex_stderr}")"
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "codex" "${CODEX_MODEL:-}" "failed" "${result_codex_reason:-unknown_error}")"
+        "$(ai_event_json "${job_name}" "${role}" "codex" "${CODEX_MODEL:-}" "failed" "${result_codex_reason:-unknown_error}" "${provider_role_arg}")"
 
       [ -n "${result_codex_reason}" ] || die "codex failed with a non-fallback error"
 
@@ -455,19 +496,19 @@ main() {
       gemini_request_payload "${prompt_path}" "${schema_path}" > "${gemini_payload}"
       if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-pro}"; then
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure")"
+          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure" "${provider_role_arg}")"
         die "gemini fallback request failed"
       fi
 
       if ! gemini_parse_json_text "${gemini_response}" "${gemini_parsed}"; then
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response")"
+          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response" "${provider_role_arg}")"
         die "gemini fallback response did not contain valid JSON"
       fi
 
       validate_role_json "${role}" "${gemini_parsed}" || {
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed")"
+          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed" "${provider_role_arg}")"
         die "gemini fallback response failed shape check"
       }
 
@@ -482,25 +523,28 @@ main() {
   # Phase 3: persist output and provider state under a short lock.
   acquire_job_lock "${job_name}"
 
-  local fresh_provider_state_json
-  fresh_provider_state_json="$(read_provider_state "${job_name}")"
-
   jq '.' "${result_source}" | safe_write "${output_path}"
 
-  if [ "${result_provider}" = "codex" ]; then
-    provider_state_after_codex_success "${fresh_provider_state_json}" | write_provider_state "${job_name}"
-  elif [ "${provider_mode}" = "gemini_cooldown" ]; then
-    provider_state_after_gemini_cooldown_success "${fresh_provider_state_json}" | write_provider_state "${job_name}"
-  else
-    provider_state_after_gemini_fallback_success \
-      "${fresh_provider_state_json}" \
-      "${result_codex_reason}" \
-      "$(now_utc)" \
-      "$(date -u +%s)" | write_provider_state "${job_name}"
+  # shadow 実行では provider_state を更新しない
+  if [ "${provider_role_arg}" != "shadow" ]; then
+    local fresh_provider_state_json
+    fresh_provider_state_json="$(read_provider_state "${job_name}")"
+
+    if [ "${result_provider}" = "codex" ]; then
+      provider_state_after_codex_success "${fresh_provider_state_json}" | write_provider_state "${job_name}"
+    elif [ "${provider_mode}" = "gemini_cooldown" ]; then
+      provider_state_after_gemini_cooldown_success "${fresh_provider_state_json}" | write_provider_state "${job_name}"
+    else
+      provider_state_after_gemini_fallback_success \
+        "${fresh_provider_state_json}" \
+        "${result_codex_reason}" \
+        "$(now_utc)" \
+        "$(date -u +%s)" | write_provider_state "${job_name}"
+    fi
   fi
 
   append_event_log_safe "$(events_path "${job_name}")" \
-    "$(ai_event_json "${job_name}" "${role}" "${result_provider}" "${result_model}" "${final_event_result}" "${final_event_reason}")"
+    "$(ai_event_json "${job_name}" "${role}" "${result_provider}" "${result_model}" "${final_event_result}" "${final_event_reason}" "${provider_role_arg}")"
 }
 
 main "$@"

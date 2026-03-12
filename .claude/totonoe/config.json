@@ -1,0 +1,11 @@
+{
+  "providers": {
+    "primary": "codex"
+  },
+  "reviewer": {
+    "mode": "fallback"
+  },
+  "judge": {
+    "mode": "fallback"
+  }
+}

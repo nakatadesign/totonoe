@@ -88,6 +88,121 @@ build_prompt_file() {
   } | safe_write "${prompt_file}"
 }
 
+# shadow provider で reviewer を実行する（失敗してもループを止めない）
+run_shadow_reviewer() {
+  local job_name="$1"
+  local batch_label="$2"
+  local prompt_file="$3"
+  local round_path="$4"
+
+  local shadow_output_file="${round_path}/reviewer_batch_${batch_label}_shadow.json"
+  local shadow_tmp
+  shadow_tmp="$(mktemp)"
+
+  if ! "${BIN_DIR}/run_ai_exec.sh" \
+    --role reviewer \
+    --prompt-file "${prompt_file}" \
+    --schema-file "${SCHEMAS_DIR}/reviewer.schema.json" \
+    --output-file "${shadow_output_file}" \
+    --job-name "${job_name}" \
+    --provider-role shadow; then
+    warn "shadow reviewer execution failed for batch ${batch_label}"
+    rm -f "${shadow_tmp}"
+    return 0
+  fi
+
+  if ! validate_reviewer_output "${shadow_output_file}"; then
+    warn "shadow reviewer output failed validation for batch ${batch_label}"
+    rm -f "${shadow_tmp}"
+    return 0
+  fi
+
+  normalize_reviewer_output "${shadow_output_file}" > "${shadow_tmp}"
+  safe_write "${shadow_output_file}" < "${shadow_tmp}"
+  rm -f "${shadow_tmp}"
+}
+
+# shadow バッチを集約して reviewer_shadow.json を生成する
+build_shadow_aggregate() {
+  local round_path="$1"
+  shift
+  local shadow_batch_files=("$@")
+
+  if [ "${#shadow_batch_files[@]}" -eq 0 ]; then
+    return 0
+  fi
+
+  # 存在するファイルだけを対象にする
+  local existing=()
+  local f
+  for f in "${shadow_batch_files[@]}"; do
+    [ -f "${f}" ] && existing+=("${f}")
+  done
+
+  [ "${#existing[@]}" -eq 0 ] && return 0
+
+  jq -s '
+    def grade_rank:
+      if . == "S" then 0
+      elif . == "A" then 1
+      elif . == "B" then 2
+      else 3
+      end;
+    {
+      summary: (map(.summary) | map(select(length > 0)) | join("\n\n")),
+      overall_grade: (
+        map({grade: .overall_grade, rank: (.overall_grade | grade_rank)})
+        | max_by(.rank).grade
+      ),
+      critical_count: (map([.findings[]? | select(.severity == "critical")] | length) | add // 0),
+      findings: (map(.findings) | add // [])
+    }
+  ' "${existing[@]}" | safe_write "${round_path}/reviewer_shadow.json"
+}
+
+# primary と shadow の差分サマリーを生成する
+build_shadow_summary() {
+  local round_path="$1"
+
+  local primary_file="${round_path}/reviewer_aggregate.json"
+  local shadow_file="${round_path}/reviewer_shadow.json"
+
+  [ -f "${primary_file}" ] || return 0
+  [ -f "${shadow_file}" ]  || return 0
+
+  jq -n \
+    --slurpfile primary "${primary_file}" \
+    --slurpfile shadow "${shadow_file}" \
+    '
+      ($primary[0]) as $p |
+      ($shadow[0])  as $s |
+      {
+        primary_grade:         $p.overall_grade,
+        shadow_grade:          $s.overall_grade,
+        grade_diff:            (
+          (if $p.overall_grade == "S" then 0 elif $p.overall_grade == "A" then 1 elif $p.overall_grade == "B" then 2 else 3 end)
+          - (if $s.overall_grade == "S" then 0 elif $s.overall_grade == "A" then 1 elif $s.overall_grade == "B" then 2 else 3 end)
+          | fabs | floor
+        ),
+        primary_critical_count: $p.critical_count,
+        shadow_critical_count:  $s.critical_count,
+        critical_count_diff:    ($p.critical_count - $s.critical_count | fabs),
+        primary_only_critical:  (
+          ([$p.findings[] | select(.severity == "critical")] | map({file: .file, title: .title})) as $pc |
+          ([$s.findings[] | select(.severity == "critical")] | map({file: .file, title: .title})) as $sc |
+          [$pc[] | select(. as $x | $sc | map(select(.file == $x.file and .title == $x.title)) | length == 0)]
+        ),
+        shadow_only_critical:   (
+          ([$p.findings[] | select(.severity == "critical")] | map({file: .file, title: .title})) as $pc |
+          ([$s.findings[] | select(.severity == "critical")] | map({file: .file, title: .title})) as $sc |
+          [$sc[] | select(. as $x | $pc | map(select(.file == $x.file and .title == $x.title)) | length == 0)]
+        ),
+        primary_finding_count:  ($p.findings | length),
+        shadow_finding_count:   ($s.findings | length)
+      }
+    ' | safe_write "${round_path}/reviewer_shadow_summary.json"
+}
+
 main() {
   require_cmd jq
 
@@ -146,6 +261,10 @@ main() {
       findings: []
     }' | safe_write "${round_path}/reviewer_aggregate.json"
   else
+    local reviewer_mode
+    reviewer_mode="$(read_reviewer_mode)"
+
+    local shadow_batch_files=()
     local batch_index=0
     local i batch_label prompt_file output_file normalized_output
     for ((i = 0; i < ${#changed_files[@]}; i += 3)); do
@@ -158,12 +277,14 @@ main() {
       build_prompt_file "${prompt_file}" "${job_name}" "${round_path}" "${batch_label}" \
         "${changed_files[@]:i:3}"
 
+      # primary 実行
       if ! "${BIN_DIR}/run_ai_exec.sh" \
         --role reviewer \
         --prompt-file "${prompt_file}" \
         --schema-file "${SCHEMAS_DIR}/reviewer.schema.json" \
         --output-file "${output_file}" \
-        --job-name "${job_name}"; then
+        --job-name "${job_name}" \
+        --provider-role primary; then
         rm -f "${normalized_output}"
         die "reviewer execution failed for batch ${batch_label}"
       fi
@@ -176,8 +297,14 @@ main() {
       normalize_reviewer_output "${output_file}" > "${normalized_output}"
       safe_write "${output_file}" < "${normalized_output}"
       batch_outputs+=("${output_file}")
-
       rm -f "${normalized_output}"
+
+      # shadow 実行（shadow mode のときのみ）
+      if [ "${reviewer_mode}" = "shadow" ]; then
+        run_shadow_reviewer "${job_name}" "${batch_label}" "${prompt_file}" "${round_path}"
+        local shadow_batch_file="${round_path}/reviewer_batch_${batch_label}_shadow.json"
+        shadow_batch_files+=("${shadow_batch_file}")
+      fi
     done
 
     jq -s '
@@ -197,13 +324,19 @@ main() {
         findings: (map(.findings) | add // [])
       }
     ' "${batch_outputs[@]}" | safe_write "${round_path}/reviewer_aggregate.json"
+
+    # shadow aggregate と summary を生成する（shadow mode のときのみ）
+    if [ "${reviewer_mode}" = "shadow" ] && [ "${#shadow_batch_files[@]}" -gt 0 ]; then
+      build_shadow_aggregate "${round_path}" "${shadow_batch_files[@]}"
+      build_shadow_summary "${round_path}"
+    fi
   fi
 
   local aggregate_json aggregate_grade aggregate_critical batch_count
   aggregate_json="$(safe_read "${round_path}/reviewer_aggregate.json")"
   aggregate_grade="$(printf '%s\n' "${aggregate_json}" | jq -r '.overall_grade')"
   aggregate_critical="$(printf '%s\n' "${aggregate_json}" | jq -r '.critical_count')"
-  batch_count="$(find "${round_path}" -maxdepth 1 -type f -name 'reviewer_batch_*.json' | wc -l | tr -d ' ')"
+  batch_count="$(find "${round_path}" -maxdepth 1 -type f -name 'reviewer_batch_*.json' ! -name '*_shadow.json' | wc -l | tr -d ' ')"
 
   acquire_job_lock "${job_name}"
   trap release_job_lock EXIT

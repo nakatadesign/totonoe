@@ -323,6 +323,33 @@ acquire_job_lock() {
   done
 }
 
+# config.json のパスを返す
+totonoe_config_path() {
+  printf '%s/config.json\n' "${TOTONOE_DIR}"
+}
+
+# reviewer_mode を返す。config.json がなければ "fallback" を返す
+read_reviewer_mode() {
+  local config_path
+  config_path="$(totonoe_config_path)"
+  if [ ! -f "${config_path}" ]; then
+    printf 'fallback\n'
+    return
+  fi
+  local mode
+  mode="$(jq -r '.reviewer.mode // "fallback"' "${config_path}")"
+  case "${mode}" in
+    fallback|shadow)
+      printf '%s\n' "${mode}"
+      ;;
+    *)
+      warn "unknown reviewer mode '${mode}' in config.json, using fallback"
+      printf 'fallback\n'
+      ;;
+  esac
+}
+
+
 release_job_lock() {
   case "${JOB_LOCK_MODE}" in
     flock)
