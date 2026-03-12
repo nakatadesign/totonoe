@@ -12,7 +12,7 @@ Claude Code を実装役、Codex CLI を主評価役、Gemini を fallback と S
 ## どんな人に向いているか
 
 - Claude Code を使ってアプリやシステムを開発しながら、別の AI に評価させるループを回したい人
-- Claude と ChatGPT のサブスクを活用して、API 従量課金だけに依存しない開発ループを組みたい人
+- Claude と ChatGPT のサブスクを活用して、API 従量課金に依存しない開発ループを組みたい人
 
 ---
 
