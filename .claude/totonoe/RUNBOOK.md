@@ -40,14 +40,24 @@ provider 状態も一緒に見たい場合:
 
 Codex が quota / token / context length / rate limit 系で失敗した場合だけ、内部で `Gemini` へ自動フォールバックする。
 
-必要な環境変数:
+必要な環境変数（`.env.example` を `.env` にコピーして設定）:
 
 ```bash
-export GEMINI_API_KEY="AIza..."
-export GEMINI_MODEL="gemini-2.5-pro"
-export AI_PROVIDER_COOLDOWN_BASE_SECONDS="1800"
-export CODEX_MODEL="gpt-5-codex"  # audit log only; this does not pass --model to codex exec
+cp .env.example .env
+# .env を編集して GEMINI_API_KEY を入力
+source .env
 ```
+
+`.env` に含まれる主な項目:
+
+| 変数名 | 用途 | 備考 |
+|---|---|---|
+| `GEMINI_API_KEY` | Gemini API 認証 | 必須。空のままだと fallback / shadow でエラー |
+| `GEMINI_MODEL` | Gemini モデル名 | 省略時 `gemini-2.5-pro` |
+| `CODEX_MODEL` | 監査ログ記録用 | `codex exec --model` には渡さない |
+| `AI_PROVIDER_COOLDOWN_BASE_SECONDS` | Codex 失敗後の冷却時間（秒） | 連続失敗で倍増、最大 7200 秒 |
+
+> **注意**: API キーは `.env` に書き、`.claude/totonoe/config.json` には入れないこと。`config.json` にはモード設定など公開可能な情報のみを置く。
 
 ## 5. Manager が確認して決定する
 
@@ -114,7 +124,7 @@ jq 'select(.type == "ai_exec")' .claude/totonoe/runtime/sample-feature/events.js
 ## 8. 注意点
 
 - `jq >= 1.6` と `codex` が必要
-- `Gemini` fallback を使う場合は `curl` と `GEMINI_API_KEY` が必要
+- `Gemini`（fallback / shadow）を使うには `curl` と `GEMINI_API_KEY` が必要（`.env` で設定）
 - cooldown 中に Gemini が成功しても `codex_consecutive_failures` は維持される。Codex 回復確認までは failure count を保持する設計
 - `record_claude_round.sh` へ渡す changed file はリポジトリ内パスにする
 - `done` を指定しても条件未達なら自動で `human` に降格する

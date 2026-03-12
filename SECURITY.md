@@ -1,37 +1,47 @@
-# Security Policy
+# セキュリティポリシー
 
-This repository is a template and reference implementation, not a hosted service. The most security-sensitive areas are the runtime shell scripts under `.claude/totonoe/bin/`.
+このリポジトリはテンプレート兼リファレンス実装であり、ホスティングサービスではありません。
 
-## Scope
+セキュリティ上とくに重要なのは `.claude/totonoe/bin/` 配下のランタイムシェルスクリプトです。パスの正規化・シンボリックリンクの検証・状態ファイルのアトミック書き込みなど、意図的な設計判断が多く含まれています。派生リポジトリを公開する前に、このファイルを一読してください。
 
-Security reports are especially relevant when they involve:
+---
 
-- path traversal or directory escape
-- symlink or hardlink bypasses
-- unintended command execution outside the intended wrappers
-- runtime state corruption or lock bypass
-- secret leakage through logs, prompts, or generated files
+## 報告してほしいこと
 
-## Reporting
+以下に該当する問題を見つけた場合は、ぜひ報告をお願いします。
 
-If this project is published on GitHub, prefer a private disclosure path first.
+- パストラバーサル・ディレクトリエスケープ
+- シンボリックリンク・ハードリンクを使ったバイパス
+- 意図しないコマンドの実行
+- ランタイム状態の破損やロック機構のバイパス
+- ログ・プロンプト・生成ファイルを経由したシークレットの漏洩
 
-Recommended order:
+---
 
-1. Open a GitHub Security Advisory, if enabled for the repository
-2. Contact the maintainer through a private channel listed by the maintainer
-3. If no private channel exists yet, open a minimal public issue without exploit details and request a private contact path
+## 報告方法
 
-Please do not publish full exploit details before a fix is available.
+**GitHub Security Advisory（推奨）**
 
-## Supported Versions
+リポジトリの Security タブ → "Report a vulnerability" から非公開で報告できます。
 
-Security fixes should target the latest `main` branch or the latest published release derived from it.
+**GitHub Issue**
 
-## Notes For Derived Repositories
+脆弱性の詳細は含めず、最小限の内容で Issue を作成してください。その後、非公開の連絡手段をリクエストしていただければ対応します。
 
-If you publish a repository based on this template, you should update this file with:
+修正が公開されるまで、悪用手法の詳細を公開しないようお願いします。
 
-- a real maintainer contact path
-- your supported version policy
-- any provider-specific secret handling rules you add
+---
+
+## サポート対象バージョン
+
+セキュリティ修正は `main` ブランチの最新コミット、またはそこから派生した最新リリースを対象とします。
+
+---
+
+## このテンプレートをもとに公開する方へ
+
+派生リポジトリを公開する場合は、以下を自分の環境に合わせて更新してください。
+
+- メンテナーへの連絡手段（上記の報告方法欄）
+- サポート対象バージョンのポリシー
+- 追加したプロバイダー固有のシークレット管理ルール

@@ -1,4 +1,4 @@
-# totonoe Runtime Core
+# totonoe ランタイムコア
 
 `totonoe` の実行コアです。Claude Code と Codex CLI を組み合わせて、Manager / Engineer / Reviewer / Analyst の 4 役で進める totonoe の基本構成です。
 runtime path は `.claude/totonoe/` です。

@@ -1,122 +1,209 @@
 # totonoe
 
-`totonoe` is a reference template for running a Claude Code + Codex CLI workflow with explicit role separation, secure runtime state handling, and optional Gemini fallback.
+**アプリ・システム開発のための AI 開発ワークフロー**
 
-## What This Is
+Claude Code と Codex CLI を組み合わせた、リファレンステンプレートです。
 
-- A reusable template for repositories that want a structured `Manager -> Engineer -> Reviewer -> Analyst -> Manager` loop
-- A bash-first orchestration layer with no Python dependency in the runtime scripts
-- A reference implementation that emphasizes safety around runtime files, path handling, and final decision gates
+実装は Claude Code、評価は Codex——役割を分けることで、同じ AI が自分の出力を採点する「セルフ採点問題」を回避します。品質基準を満たすまでループが続き、完了の判断は厳格な条件に基づきます。
 
-## What This Is Not
+---
 
-- Not a hosted service
-- Not a generic agent framework for every workflow
-- Not a promise that autonomous implementation is always safe without human review
+## どんな人に向いているか
 
-## Core Capabilities
+- Claude Code を使って複雑なアプリを開発しているが、品質管理に課題を感じている人
+- 「動きはするけど脆い」コードから脱け出したい人
+- 実装と評価を別の AI に分担させる構造を試したい人
 
-- Codex-first execution with Gemini fallback only for quota, token, rate-limit, and context-length failures
-- `done` guarded by explicit conditions instead of Engineer self-reporting
-- Secure runtime helpers for path traversal, symlink, hardlink, and atomic write handling
-- Specialized Engineer routing via `engineer_type`
-- Copyable setup for new repositories through `setup.sh`
+---
 
-## Naming
+## このテンプレートでできること
 
-The repository name is `totonoe`, and the installed runtime path is `.claude/totonoe/`.
+**Manager → Engineer → Reviewer → Analyst → Manager** のループを bash スクリプトだけで回します。
 
-## Repository Layout
+- **実装** は Claude Code（Engineer）が担当する
+- **評価** は Codex（Reviewer / Analyst）が独立して行う
+- **完了判定** は Manager が厳格な4条件で判断する。Engineer の自己申告では完了にならない
+- **Codex のトークン上限到達時** は自動で Gemini にフォールバックし、ループを止めない
 
-- `.claude/totonoe/`: runtime scripts, schemas, goals, and operational docs
-- `.claude/agents/MANAGER.md`: final decision maker
-- `.claude/agents/GENERIC-ENGINEER.md`: default Engineer
-- `.claude/agents/SECURITY-ENGINEER.md`: security-focused Engineer
-- `.claude/agents/TEST-ENGINEER.md`: test-focused Engineer
-- `.claude/agents/PERF-ENGINEER.md`: performance-focused Engineer
-- `.claude/agents/REFACTOR-ENGINEER.md`: refactor-focused Engineer
-- `.claude/settings.json`: base Claude permissions
-- `CLAUDE.totonoe.template.md`: template section for repository-level loop instructions
-- `AGENTS.totonoe.template.md`: template section for Codex reviewer instructions
-- `gitignore.additions`: lines to append to the target repository `.gitignore`
+Python や追加フレームワークへの依存はありません。`setup.sh` を一度実行するだけで、既存のリポジトリにそのまま導入できます。
 
-## Quick Start
+---
 
-1. Copy this template into a working directory and run:
+## このテンプレートでできないこと
+
+- ホスティングや外部サービスとしての提供ではありません
+- 「人間のレビューが不要になる」ことを保証するものでもありません
+- 汎用のエージェントフレームワークを目指したものでもありません
+
+あくまで「開発サイクルの品質を上げるための構造」を提供するテンプレートです。
+
+---
+
+## 必要なもの
+
+| ツール      | 役割                           | プラン            |
+| ----------- | ------------------------------ | ----------------- |
+| Claude Code | 実装・修正（Engineer）         | Claude Max 推奨   |
+| Codex CLI   | レビュー・判定（Reviewer / Analyst） | ChatGPT Plus 以上 |
+| Gemini API  | fallback / shadow 用 provider  | API キーのみ      |
+
+`Gemini` は任意機能ではなく、totonoe の標準構成の一部です。Codex がトークン上限やレート制限で使えないとき、Gemini が自動で引き継ぐことでループを止めずに回し続けます。shadow mode では Codex と Gemini の評価を並走比較できます。
+
+その他、`bash` / `jq 1.6以上` / `curl` / `perl` または `realpath` が必要です。
+
+サブスク型の利用枠を前提にした構成なので、API 従量課金だけに依存しない運用がしやすいのが特徴です。
+
+---
+
+## クイックスタート
+
+**1. テンプレートをコピーする**
 
 ```bash
 ./setup.sh --target /path/to/your/repo
 ```
 
-2. Merge these files into the target repository as needed:
-   - `CLAUDE.totonoe.template.md`
-   - `AGENTS.totonoe.template.md`
-3. Customize the target repository agents:
-   - `.claude/agents/GENERIC-ENGINEER.md`
-   - optional specialized Engineers under `.claude/agents/`
-4. If you want provider fallback, export:
+**2. テンプレートファイルをマージする**
 
-```bash
-export GEMINI_API_KEY="..."
-export GEMINI_MODEL="gemini-2.5-pro"
-export AI_PROVIDER_COOLDOWN_BASE_SECONDS="1800"
+```
+CLAUDE.totonoe.template.md  →  対象リポジトリの CLAUDE.md にマージ
+AGENTS.totonoe.template.md  →  対象リポジトリの AGENTS.md にマージ
 ```
 
-5. Initialize a job in the target repository:
+**3. エンジニア定義をカスタマイズする**
+
+`.claude/agents/GENERIC-ENGINEER.md` を対象リポジトリの技術スタックに合わせて書き換えます。専門エンジニア（SECURITY-ENGINEER / TEST-ENGINEER / PERF-ENGINEER / REFACTOR-ENGINEER）は必要なものだけ残してください。
+
+**4. 環境変数を設定する**
+
+`.env.example` を `.env` にコピーして、`GEMINI_API_KEY` などの値を設定します。
 
 ```bash
+cp .env.example .env
+# .env を編集して GEMINI_API_KEY を入力
+```
+
+totonoe のスクリプトは `.env` を自動で読み込みません。以下のいずれかの方法で環境変数を読み込んでください。
+
+```bash
+source .env                             # 手動で読み込む
+direnv allow                            # direnv を使う場合
+export $(grep -v '^#' .env | xargs)     # 一括 export
+```
+
+> **注意**: API キーなどの秘密情報は `.env` に書き、`.claude/totonoe/config.json` には入れないでください。`config.json` にはモード設定など公開可能な情報のみを置きます。`.env` は `.gitignore` で Git 管理から除外されています。
+
+**5. ジョブを初期化してループを開始する**
+
+```bash
+# ジョブを作る
 .claude/totonoe/bin/init_job.sh \
   --job-name sample-feature \
   --goal-template feature_loop
-```
 
-6. Render the loop prompt and hand it to Claude Code:
-
-```bash
+# ループ用プロンプトを生成して Claude Code に渡す
 .claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
 ```
 
-The detailed operator guide lives in [`RUNBOOK.md`](./.claude/totonoe/RUNBOOK.md).
+詳しい運用手順は [`RUNBOOK.md`](./.claude/totonoe/RUNBOOK.md) にまとめています。
 
-## How Engineer Routing Works
+---
 
-The Analyst may return an optional `engineer_type` in `judge.json`. Manager treats it as a recommendation, not a hard constraint.
+## リポジトリ構成
 
-| `engineer_type` | Default dispatch |
-|---|---|
-| `security` | `Security-Engineer` |
-| `test` | `Test-Engineer` |
-| `performance` | `Perf-Engineer` |
-| `refactor` | `Refactor-Engineer` |
-| `generic` or unset | `Generic-Engineer` |
+```
+.claude/
+  totonoe/          ← ランタイムスクリプト、スキーマ、ゴール、RUNBOOK
+    bin/            ← init / status / record / reviewer / judge / manager の各スクリプト
+    schemas/        ← Reviewer・Judge の出力スキーマ
+    goals/          ← ループのゴールテンプレート
+  agents/
+    MANAGER.md              ← 最終決定者
+    GENERIC-ENGINEER.md     ← 汎用エンジニア（デフォルト）
+    SECURITY-ENGINEER.md    ← セキュリティ専門
+    TEST-ENGINEER.md        ← テスト専門
+    PERF-ENGINEER.md        ← パフォーマンス専門
+    REFACTOR-ENGINEER.md    ← リファクタリング専門
+  settings.json     ← Claude の基本パーミッション設定
+.env.example        ← 環境変数の雛形（.env にコピーして使う）
+CLAUDE.totonoe.template.md
+AGENTS.totonoe.template.md
+gitignore.additions
+setup.sh
+```
 
-If classification is unclear or the fix spans multiple categories, Manager should prefer `Generic-Engineer`.
+---
 
-## Requirements
+## エンジニアの専門分野ルーティング
 
-- `bash`
-- `jq >= 1.6`
-- `codex`
-- `curl`
-- `perl` or `realpath`
+Analyst が `judge.json` に `engineer_type` を返した場合、Manager はその推奨を参考に対応するエンジニアを選びます。ただし推奨であって強制ではなく、Manager が内容を見て判断を変えることができます。
 
-Most runtime and agent documents are currently written in Japanese.
+| `engineer_type`        | 呼び出されるエンジニア |
+| ---------------------- | ---------------------- |
+| `security`             | Security-Engineer      |
+| `test`                 | Test-Engineer          |
+| `performance`          | Perf-Engineer          |
+| `refactor`             | Refactor-Engineer      |
+| `generic` または未設定 | Generic-Engineer       |
 
-## Validation
+分類が曖昧な場合や修正が複数カテゴリにまたがる場合は、Generic-Engineer を使うのが安全です。
 
-This repository is intended to ship with basic CI checks:
+---
 
-- shell syntax validation
-- JSON schema parsing
-- `setup.sh` smoke test
-- minimal job initialization and round-recording smoke test
+## Gemini の扱いについて
 
-See [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
+Gemini は totonoe の標準構成に含まれる補助 provider です。ただし秘密情報の管理は厳格に分離しています。
 
-## Security
+- API キーは `.env` に書き、環境変数（`GEMINI_API_KEY`）として読み込みます。`config.json` や Git 管理されるファイルには入れません
+- `.claude/totonoe/config.json` には provider のモードなど公開可能な設定のみを置きます
+- Gemini は fallback または shadow の用途で使い、Codex（primary）を置き換えるものではありません
+- `GEMINI_API_KEY` が未設定の状態で Gemini が必要な処理に到達すると、スクリプトは明示的にエラーで止まります
 
-This template makes security-sensitive choices in the runtime layer, especially around path normalization and state writes. Read [`SECURITY.md`](./SECURITY.md) before publishing a derived repository.
+---
 
-## License
+## Shadow Mode について
 
-MIT. See [`LICENSE`](./LICENSE).
+通常の fallback モードに加え、`config.json` で `reviewer.mode: "shadow"` を設定すると Shadow Mode が有効になります。
+
+Shadow Mode では Codex（primary）の評価に加えて Gemini（shadow）も並走させ、比較用の結果を round ディレクトリに保存します。ただし `done` 判定や state 遷移には primary の結果だけを使います。
+
+Shadow Mode の目的は「どちらが何を見落とすか」を観測することです。将来の consensus mode（両者の評価を正式採用する設計）への布石として機能します。
+
+---
+
+## Auto Mode について
+
+Claude Code の Auto Mode（`--enable-auto-mode`）は、操作ごとのリスクを Claude が判断しながら自動で進める実験的機能です。
+
+totonoe の標準的な使い方では Auto Mode を前提にしていません。隔離された開発環境での長時間実行など、用途を絞って使うことを推奨します。完了判定の厳格な4条件は Auto Mode でも変わらず有効です。
+
+---
+
+## 実験的機能について
+
+`.claude/settings.json` で `agentTeams` フラグを有効にしています。これは Claude Code の実験的機能で、将来変更される可能性があります。
+
+---
+
+## セキュリティ
+
+ランタイム層ではパスの正規化、symlink チェック、アトミック書き込みなどセキュリティに関わる設計判断を多く行っています。派生リポジトリを公開する前に [`SECURITY.md`](./SECURITY.md) を一読してください。
+
+---
+
+## CI
+
+基本的な CI チェックを含んでいます。
+
+- `bash -n` によるシェル構文の検証
+- JSON スキーマのパース確認
+- `setup.sh` のスモークテスト
+- ジョブ初期化・ラウンド記録のスモークテスト
+
+詳細は [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) を参照してください。
+
+---
+
+## ライセンス
+
+MIT — [`LICENSE`](./LICENSE) を参照してください。

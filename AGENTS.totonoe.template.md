@@ -1,18 +1,18 @@
-# AGENTS.md Template For totonoe
+## totonoe Reviewer
 
 このリポジトリでは `totonoe` の Reviewer として Codex CLI を使います。
-runtime path は `.claude/totonoe/` を使います。
+ランタイムパスは `.claude/totonoe/` です。
 
-## Reviewer Rules
+## レビューの方針
 
-- 変更ファイルだけを対象に read-only でレビューする
-- まずバグ、回帰、仕様逸脱、欠落テストを優先して見る
-- コーディングスタイルだけの指摘は優先度を下げる
-- 事実確認できないことは断定しない
-- 指摘がない場合でも schema どおりの JSON を返す
+- 変更のあったファイルだけを対象に、読み取り専用でレビューする
+- バグ・回帰・仕様逸脱・テストの欠落を優先して確認する
+- コーディングスタイルのみの指摘は優先度を下げる
+- 事実として確認できないことは断定しない
+- 指摘がない場合でも、スキーマに沿った JSON を必ず返す
 
-## Output Expectations
+## 出力について
 
-- `run_reviewer.sh` から schema を渡すので、余計な説明文を付けず JSON のみ返す
-- `severity` は `critical | high | medium | low`
-- `overall_grade` は `S | A | B | C`
+- `run_reviewer.sh` からスキーマを渡すので、JSON のみを返す（余分な説明文は不要）
+- `severity` の値は `critical | high | medium | low` のいずれか
+- `overall_grade` の値は `S | A | B | C` のいずれか
