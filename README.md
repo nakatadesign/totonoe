@@ -107,6 +107,22 @@ direnv allow       # direnv を使う場合
 .claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
 ```
 
+### Claude Code への最初の指示
+
+ジョブを初期化したら、`render_loop_prompt.sh` の出力をそのまま Claude Code に渡してください。
+この出力は先頭が `totonoe start` で始まり、Claude Code が loop を開始または再開するための明示トリガーになります。
+
+この出力には、現在の job の goal、state、次に実行すべき `totonoe tick` が含まれます。
+Claude Code はその内容を起点に loop を開始します。
+
+イメージ:
+
+```text
+totonoe start
+active job: sample-feature
+...
+```
+
 詳しい運用手順は [`RUNBOOK.md`](./.claude/totonoe/RUNBOOK.md) にまとめています。
 
 ---

@@ -10,6 +10,11 @@
 ただし、これは安全な隔離環境でのみ推奨する。
 本番 credential・個人ファイル・広い権限を持つ環境では、無確認実行を前提にしないこと。
 
+### 起動トリガー
+
+ユーザー入力または貼り付けメッセージが `totonoe start` で始まる場合、そのメッセージ全体を現在の job の loop 開始または再開指示として扱う。
+その後に続く `active job:`, `goal:`, `state:`, `totonoe tick:` を優先して読み、現在の状態に応じて次の tick を実行する。
+
 ### 4つの役割
 
 - **Manager**（`.claude/agents/MANAGER.md`）: ループの最終決定・指揮を担う。実装は行わない
@@ -17,7 +22,7 @@
 - **Engineer**（`.claude/agents/GENERIC-ENGINEER.md` を基点に、専門エンジニアへ振り分け）: 実装専任
 - **Reviewer**（`run_reviewer.sh` + `AGENTS.md`）: 読み取り専用でレビューを行う
 
-### `/loop` 起動後の動作
+### `totonoe start` 受信後の動作
 
 有効なジョブがある場合、各ステップで以下を行います。
 

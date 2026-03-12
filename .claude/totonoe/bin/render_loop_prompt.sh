@@ -44,8 +44,14 @@ main() {
   current_status="$(printf '%s\n' "${state_json}" | jq -r '.status')"
 
   cat <<EOF
+totonoe start
+
 active job: ${job_name}
 repo root: ${REPO_ROOT}
+
+interpretation:
+- このメッセージ全体を、現在の job の loop 開始または再開指示として扱う
+- \`totonoe start\` は、Claude Code が totonoe の tick を開始するための明示トリガーである
 
 goal:
 ${goal_text}
