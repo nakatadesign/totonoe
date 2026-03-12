@@ -118,6 +118,10 @@ main() {
     "${SCRIPT_DIR}/AGENTS.totonoe.template.md" \
     "${target_repo}/AGENTS.totonoe.template.md" \
     "${force}"
+  copy_file_if_needed \
+    "${SCRIPT_DIR}/.env.example" \
+    "${target_repo}/.env.example" \
+    "${force}"
 
   while IFS= read -r gitignore_line; do
     [ -n "${gitignore_line}" ] || continue
@@ -128,12 +132,13 @@ main() {
 setup complete for: ${target_repo}
 
 next steps:
-- Merge ${target_repo}/CLAUDE.totonoe.template.md into your CLAUDE.md if needed
-- Merge ${target_repo}/AGENTS.totonoe.template.md into your AGENTS.md if needed
+- Merge ${target_repo}/CLAUDE.totonoe.template.md into your CLAUDE.md
+- Merge ${target_repo}/AGENTS.totonoe.template.md into your AGENTS.md
 - Customize ${target_repo}/.claude/agents/GENERIC-ENGINEER.md for this repository
 - Add or adjust specialized Engineers under ${target_repo}/.claude/agents as needed
 - If ${target_repo}/.claude/settings.json already existed and was kept, manually merge the totonoe permissions into it
-- If you want Gemini fallback, export GEMINI_API_KEY before running reviewer/judge
+- Copy ${target_repo}/.env.example to ${target_repo}/.env and set GEMINI_API_KEY
+  (Gemini is used for fallback and shadow mode; GEMINI_API_KEY is required to use these features)
 EOF
 }
 

@@ -38,6 +38,7 @@ jobs:
           test -f "${target}/.claude/agents/TEST-ENGINEER.md"
           test -f "${target}/.claude/agents/PERF-ENGINEER.md"
           test -f "${target}/.claude/agents/REFACTOR-ENGINEER.md"
+          test -f "${target}/.env.example"
 
           (
             cd "${target}"
