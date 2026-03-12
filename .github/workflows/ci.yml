@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  shell-and-smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      - name: Validate shell syntax
+        run: |
+          bash -n setup.sh
+          bash -n .claude/totonoe/bin/*.sh
+
+      - name: Validate JSON files
+        run: |
+          jq . .claude/settings.json >/dev/null
+          jq . .claude/totonoe/schemas/judge.schema.json >/dev/null
+          jq . .claude/totonoe/schemas/reviewer.schema.json >/dev/null
+
+      - name: Smoke test setup and local runtime flow
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+
+          test -f "${target}/.claude/agents/GENERIC-ENGINEER.md"
+          test -f "${target}/.claude/agents/SECURITY-ENGINEER.md"
+          test -f "${target}/.claude/agents/TEST-ENGINEER.md"
+          test -f "${target}/.claude/agents/PERF-ENGINEER.md"
+          test -f "${target}/.claude/agents/REFACTOR-ENGINEER.md"
+
+          (
+            cd "${target}"
+            .claude/totonoe/bin/init_job.sh --job-name smoke --goal-template feature_loop
+            printf 'summary\n' > .claude/totonoe/runtime/smoke/summary.md
+            .claude/totonoe/bin/record_claude_round.sh \
+              --job-name smoke \
+              --summary-file .claude/totonoe/runtime/smoke/summary.md \
+              --changed-file CLAUDE.totonoe.template.md \
+              --quality-analyze passed \
+              --quality-test skipped
+            .claude/totonoe/bin/status.sh --job-name smoke --json --provider-state >/dev/null
+          )

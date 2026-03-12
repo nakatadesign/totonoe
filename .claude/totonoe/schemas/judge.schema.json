@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "recommendation",
+    "reason",
+    "must_fix",
+    "can_defer",
+    "next_step"
+  ],
+  "properties": {
+    "recommendation": {
+      "type": "string",
+      "enum": ["fix", "continue", "done", "human"]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1
+    },
+    "must_fix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "can_defer": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "next_step": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engineer_type": {
+      "type": "string",
+      "description": "Analyst が推奨する Engineer の専門種別。recommendation が fix のとき設定される。標準値: security / test / performance / refactor / generic。未設定または unknown の場合は generic として扱う。"
+    },
+    "spot_check_required": {
+      "type": "boolean"
+    }
+  }
+}

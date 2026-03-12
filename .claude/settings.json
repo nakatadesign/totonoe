@@ -1,0 +1,19 @@
+{
+  "experiments": {
+    "agentTeams": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(.claude/totonoe/bin/init_job.sh:*)",
+      "Bash(.claude/totonoe/bin/status.sh:*)",
+      "Bash(.claude/totonoe/bin/record_claude_round.sh:*)",
+      "Bash(.claude/totonoe/bin/run_ai_exec.sh:*)",
+      "Bash(.claude/totonoe/bin/run_reviewer.sh:*)",
+      "Bash(.claude/totonoe/bin/run_judge.sh:*)",
+      "Bash(.claude/totonoe/bin/reset_provider.sh:*)",
+      "Bash(.claude/totonoe/bin/apply_manager_decision.sh:*)",
+      "Bash(.claude/totonoe/bin/render_loop_prompt.sh:*)",
+      "Bash(.claude/totonoe/bin/templates.sh:*)"
+    ]
+  }
+}
