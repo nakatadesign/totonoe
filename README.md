@@ -41,11 +41,11 @@ Python や追加フレームワークへの依存はありません。`setup.sh`
 
 ## 必要なもの
 
-| ツール      | 役割                           | プラン            |
-| ----------- | ------------------------------ | ----------------- |
-| Claude Code | 実装・修正（Engineer）         | Claude Max 推奨   |
+| ツール      | 役割                                 | プラン            |
+| ----------- | ------------------------------------ | ----------------- |
+| Claude Code | 実装・修正（Engineer）               | Claude Max 推奨   |
 | Codex CLI   | レビュー・判定（Reviewer / Analyst） | ChatGPT Plus 以上 |
-| Gemini API  | fallback / shadow 用 provider  | API キーのみ      |
+| Gemini API  | fallback / shadow 用 provider        | API キーのみ      |
 
 `Gemini` は任意機能ではなく、totonoe の標準構成の一部です。Codex がトークン上限やレート制限で使えないとき、Gemini が自動で引き継ぐことでループを止めずに回し続けます。shadow mode では Codex と Gemini の評価を並走比較できます。
 
@@ -86,9 +86,8 @@ cp .env.example .env
 totonoe のスクリプトは `.env` を自動で読み込みません。以下のいずれかの方法で環境変数を読み込んでください。
 
 ```bash
-source .env                             # 手動で読み込む
-direnv allow                            # direnv を使う場合
-export $(grep -v '^#' .env | xargs)     # 一括 export
+source .env        # 手動で読み込む（推奨）
+direnv allow       # direnv を使う場合
 ```
 
 > **注意**: API キーなどの秘密情報は `.env` に書き、`.claude/totonoe/config.json` には入れないでください。`config.json` にはモード設定など公開可能な情報のみを置きます。`.env` は `.gitignore` で Git 管理から除外されています。
@@ -161,21 +160,21 @@ Gemini は totonoe の標準構成に含まれる補助 provider です。ただ
 
 ---
 
-## Shadow Mode について
+## totonoe の Shadow Mode について
 
-通常の fallback モードに加え、`config.json` で `reviewer.mode: "shadow"` を設定すると Shadow Mode が有効になります。
+`config.json` で `reviewer.mode: "shadow"` を設定すると、totonoe の Shadow Mode が有効になります。
 
-Shadow Mode では Codex（primary）の評価に加えて Gemini（shadow）も並走させ、比較用の結果を round ディレクトリに保存します。ただし `done` 判定や state 遷移には primary の結果だけを使います。
+通常の fallback モードでは Codex が使えないときだけ Gemini に切り替えますが、Shadow Mode では Codex（primary）と Gemini（shadow）を**常に両方**動かし、比較用の結果を round ディレクトリに保存します。ただし `done` 判定や state 遷移には primary（Codex）の結果だけを使います。
 
-Shadow Mode の目的は「どちらが何を見落とすか」を観測することです。将来の consensus mode（両者の評価を正式採用する設計）への布石として機能します。
+目的は「どちらが何を見落とすか」を観測することです。将来的に両者の評価を正式採用する consensus mode への布石として位置づけています。
 
 ---
 
-## Auto Mode について
+## Claude の Auto Mode について
 
-Claude Code の Auto Mode（`--enable-auto-mode`）は、操作ごとのリスクを Claude が判断しながら自動で進める実験的機能です。
+Claude Code 自体が持つ実験的機能として、Auto Mode（`--enable-auto-mode`）があります。操作ごとのリスクを Claude が自動判断しながら進める機能で、通常は人間が確認するステップを省略できます。
 
-totonoe の標準的な使い方では Auto Mode を前提にしていません。隔離された開発環境での長時間実行など、用途を絞って使うことを推奨します。完了判定の厳格な4条件は Auto Mode でも変わらず有効です。
+totonoe の標準的な使い方では Auto Mode を前提にしていません。隔離された開発環境での長時間実行など、用途を絞って使うことを推奨します。なお、totonoe 側の完了判定（厳格な4条件）は Auto Mode でも変わらず有効です。
 
 ---
 

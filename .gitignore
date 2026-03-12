@@ -3,3 +3,4 @@
 .claude/hooks/
 .env
 .DS_Store
+docs/claudecode-shadow-mode-impl.md
