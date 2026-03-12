@@ -370,12 +370,12 @@ main() {
   local gemini_payload="" gemini_response="" gemini_error="" gemini_parsed=""
 
   cleanup() {
-    [ -n "${codex_output}" ] && rm -f "${codex_output}"
-    [ -n "${codex_stderr}" ] && rm -f "${codex_stderr}"
-    [ -n "${gemini_payload}" ] && rm -f "${gemini_payload}"
-    [ -n "${gemini_response}" ] && rm -f "${gemini_response}"
-    [ -n "${gemini_error}" ] && rm -f "${gemini_error}"
-    [ -n "${gemini_parsed}" ] && rm -f "${gemini_parsed}"
+    [ -n "${codex_output:-}" ] && rm -f "${codex_output}"
+    [ -n "${codex_stderr:-}" ] && rm -f "${codex_stderr}"
+    [ -n "${gemini_payload:-}" ] && rm -f "${gemini_payload}"
+    [ -n "${gemini_response:-}" ] && rm -f "${gemini_response}"
+    [ -n "${gemini_error:-}" ] && rm -f "${gemini_error}"
+    [ -n "${gemini_parsed:-}" ] && rm -f "${gemini_parsed}"
     release_job_lock
   }
   trap cleanup EXIT
