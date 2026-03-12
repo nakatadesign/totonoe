@@ -57,10 +57,10 @@ build_prompt_file() {
     printf '## Reviewer Aggregate\n\n'
     printf '```json\n%s\n```\n\n' "${aggregate_json}"
     printf '## Output Rules\n\n'
-    printf '- `recommendation` must be one of `fix`, `continue`, `done`, `human`\n'
-    printf '- `must_fix` should contain only issues that block completion\n'
-    printf '- `can_defer` should contain only lower-priority items\n'
-    printf '- `next_step` should be one sentence\n'
+    printf -- '- `recommendation` must be one of `fix`, `continue`, `done`, `human`\n'
+    printf -- '- `must_fix` should contain only issues that block completion\n'
+    printf -- '- `can_defer` should contain only lower-priority items\n'
+    printf -- '- `next_step` should be one sentence\n'
   } | safe_write "${prompt_file}"
 }
 

@@ -7,7 +7,9 @@
     "reason",
     "must_fix",
     "can_defer",
-    "next_step"
+    "next_step",
+    "engineer_type",
+    "spot_check_required"
   ],
   "properties": {
     "recommendation": {
