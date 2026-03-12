@@ -103,3 +103,63 @@ jobs:
             test "$(jq -r '.batches[2].status' "${sf}")" = "failed"
             test "$(jq -r '.batches[2].reason' "${sf}")" = "shadow_execution_failed"
           )
+
+      - name: Smoke test stale lock recovery (mkdir fallback)
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+          (
+            cd "${target}"
+            export TOTONOE_FORCE_MKDIR_LOCK=1
+
+            .claude/totonoe/bin/init_job.sh --job-name locktest --goal-text "lock ci test"
+
+            lock_dir=".claude/totonoe/runtime/locktest/.job.lock.d"
+
+            # 1. stale lock (dead PID) を作って次回取得で自動回収されることを確認
+            mkdir -p "${lock_dir}"
+            jq -nc '{pid: 99999999, hostname: "ci", created_at: "2025-01-01T00:00:00Z"}' > "${lock_dir}/owner.json"
+            test -d "${lock_dir}"
+
+            printf 'summary\n' > .claude/totonoe/runtime/locktest/summary.md
+            .claude/totonoe/bin/record_claude_round.sh \
+              --job-name locktest \
+              --summary-file .claude/totonoe/runtime/locktest/summary.md \
+              --changed-file CLAUDE.totonoe.template.md \
+              --quality-analyze passed \
+              --quality-test skipped
+
+            status="$(.claude/totonoe/bin/status.sh --job-name locktest --json | jq -r '.status')"
+            test "${status}" = "reviewing"
+            test ! -d "${lock_dir}"
+
+            # 2. live PID の lock は奪わないことを確認
+            mkdir -p "${lock_dir}"
+            jq -nc --argjson pid "$$" '{pid: $pid, hostname: "ci", created_at: "2025-01-01T00:00:00Z"}' > "${lock_dir}/owner.json"
+
+            if timeout 3 bash -c "
+              cd '${target}'
+              export TOTONOE_FORCE_MKDIR_LOCK=1
+              source .claude/totonoe/bin/common.sh
+              acquire_job_lock locktest
+            " 2>/dev/null; then
+              echo 'FAIL: live PID lock was stolen' >&2
+              exit 1
+            fi
+            rm -rf "${lock_dir}"
+
+            # 3. metadata なしの新しい lock dir (grace period 内) は回収しないことを確認
+            mkdir -p "${lock_dir}"
+            # owner.json を置かない — grace period 内なので回収されないはず
+
+            if timeout 3 bash -c "
+              cd '${target}'
+              export TOTONOE_FORCE_MKDIR_LOCK=1
+              source .claude/totonoe/bin/common.sh
+              acquire_job_lock locktest
+            " 2>/dev/null; then
+              echo 'FAIL: lock without metadata was reclaimed within grace period' >&2
+              exit 1
+            fi
+            rm -rf "${lock_dir}"
+          )

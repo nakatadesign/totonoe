@@ -146,5 +146,6 @@ jq 'select(.type == "ai_exec")' .claude/totonoe/runtime/sample-feature/events.js
 - `done` を指定しても条件未達なら自動で `human` に降格する
 - `runtime/` は Git 管理しない
 - `provider_state.json` も手動編集しない
+- `flock` が使えない環境では `mkdir` ベースの lock fallback を使う。異常終了で `.job.lock.d` が残った場合は owner PID の生存確認を行い、stale lock を自動回収する
 - shadow mode では primary が Gemini fallback を使った batch の shadow を自動スキップする。`reviewer_shadow_status.json` で各 batch の状態（`success` / `skipped` / `failed`）を確認できる
 - shadow の失敗や欠損で primary の loop が止まることはない
