@@ -3,7 +3,7 @@
 **AIエージェントが実装・評価を分担する開発ループ設計**
 
 `totonoe` は Bash ベースで実装されているため、Claude Code の UI/UX を入口に、実装・レビュー・判定のループを回せます。
-Claude Code を実装役、Codex CLI を主評価役、Gemini を fallback と Shadow Mode 時のセカンダリ評価役として分担させるための、開発ループ設計テンプレートです。
+Claude Code を実装役、Codex CLI を評価役として分担させるための、開発ループ設計テンプレートです。Gemini は fallback / shadow 用の optional provider として利用できます。
 
 実装は Claude Code、評価は Codex——役割を分けることで、同じ AI が自分の出力を採点する「セルフ採点問題」を回避します。品質基準を満たすまでループが続き、完了の判断は厳格な条件に基づきます。
 
@@ -23,7 +23,7 @@ Claude Code を実装役、Codex CLI を主評価役、Gemini を fallback と S
 - **実装** は Claude Code（Engineer）が担当する
 - **評価** は Codex（Reviewer / Analyst）が独立して行う
 - **完了判定** は Manager が厳格な4条件で判断する。Engineer の自己申告では完了にならない
-- **Codex のトークン上限到達時** は自動で Gemini にフォールバックし、ループを止めない
+- **Gemini を設定している場合**、Codex のトークン上限到達時に自動でフォールバックできる（optional）
 
 > 例: Reviewer は毎回 `S / A / B / C` のいずれかを返しますが、それだけでは `done` にはなりません。`done` は「critical_count が 0」「quality gate が通っている」「Judge が `done` を推奨している」「Manager の spot check がある」という条件が揃ったときだけ確定します。
 
@@ -47,13 +47,13 @@ Python や追加フレームワークへの依存はありません。`setup.sh`
 | ----------- | ------------------------------------ | ----------------- |
 | Claude Code | 実装・修正（Engineer）               | Claude Max 推奨   |
 | Codex CLI   | レビュー・判定（Reviewer / Analyst） | ChatGPT Plus 以上 |
-| Gemini API  | fallback / shadow 用 provider        | API キーのみ      |
+| Gemini API  | fallback / shadow 用（optional）      | API キーのみ      |
 
-`Gemini` は任意機能ではなく、totonoe の標準構成の一部です。Codex がトークン上限やレート制限で使えないとき、Gemini が自動で引き継ぐことでループを止めずに回し続けます。shadow mode では Codex と Gemini の評価を並走比較できます。
+`GEMINI_API_KEY` がなくても Codex-only の通常運用は成立します。Gemini を設定すると、Codex がトークン上限やレート制限で使えないときに自動で引き継ぐ fallback として機能します。shadow mode では Codex と Gemini の評価を並走比較できます。
 
-その他、`bash` / `jq 1.6以上` / `curl` / `perl` または `realpath` が必要です。
+その他、`bash` / `jq 1.6以上` / `perl` または `realpath` が必要です。Gemini の fallback / shadow を使う場合は `curl` も必要です。
 
-Claude Code の UI/UX をそのまま使いながら、バックグラウンドで Codex と Gemini が評価を担う構成のため、普段の Claude Code の使い方を大きく変える必要はありません。サブスク型の利用枠を前提にした構成なので、API 従量課金だけに依存しない運用がしやすいのも特徴です。
+Claude Code の UI/UX をそのまま使いながら、バックグラウンドで Codex が評価を担う構成のため、普段の Claude Code の使い方を大きく変える必要はありません。サブスク型の利用枠を前提にした構成なので、API 従量課金だけに依存しない運用がしやすいのも特徴です。
 
 ---
 
@@ -79,11 +79,11 @@ AGENTS.totonoe.template.md  →  対象リポジトリの AGENTS.md にマージ
 
 **4. 環境変数を設定する**
 
-`.env.example` を `.env` にコピーして、`GEMINI_API_KEY` などの値を設定します。
+`.env.example` を `.env` にコピーして値を設定します。Gemini の fallback / shadow を使う場合は `GEMINI_API_KEY` を設定してください。
 
 ```bash
 cp .env.example .env
-# .env を編集して GEMINI_API_KEY を入力
+# .env を編集して必要な値を設定
 ```
 
 totonoe のスクリプトは `.env` を自動で読み込みません。以下のいずれかの方法で環境変数を読み込んでください。
@@ -223,7 +223,7 @@ Analyst が `judge.json` に `engineer_type` を返した場合、Manager はそ
 
 ## Gemini の扱いについて
 
-Gemini は totonoe の標準構成に含まれる補助 provider です。ただし秘密情報の管理は厳格に分離しています。
+Gemini は fallback / shadow 用の optional provider です。`GEMINI_API_KEY` がなくても Codex-only で通常運用できます。利用する場合は、秘密情報の管理を厳格に分離しています。
 
 - API キーは `.env` に書き、環境変数（`GEMINI_API_KEY`）として読み込みます。`config.json` や Git 管理されるファイルには入れません
 - `.claude/totonoe/config.json` には provider のモードなど公開可能な設定のみを置きます
