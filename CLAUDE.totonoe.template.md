@@ -1,6 +1,7 @@
 ## totonoe 運用
 
 このリポジトリでは `totonoe` を使って開発ループを回します。Claude Code がコントローラーとなり、シェルスクリプト経由で Codex CLI を呼び出して進行を制御します。ランタイムパスは `.claude/totonoe/` です。
+Gemini を使う場合の既定モデルは `gemini-2.5-flash-lite` です。`gemini-2.5-pro` は project / tier によって free tier で使えない場合があるため、fallback / shadow 用の軽量な既定値として扱います。
 
 ### 実行モードの前提
 

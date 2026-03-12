@@ -68,11 +68,12 @@ source .env
 | 変数名 | 用途 | 備考 |
 |---|---|---|
 | `GEMINI_API_KEY` | Gemini API 認証 | 必須。空のままだと fallback / shadow でエラー |
-| `GEMINI_MODEL` | Gemini モデル名 | 省略時 `gemini-2.5-pro` |
+| `GEMINI_MODEL` | Gemini モデル名 | 省略時 `gemini-2.5-flash-lite` |
 | `CODEX_MODEL` | 監査ログ記録用 | `codex exec --model` には渡さない |
 | `AI_PROVIDER_COOLDOWN_BASE_SECONDS` | Codex 失敗後の冷却時間（秒） | 連続失敗で倍増、最大 7200 秒 |
 
 > **注意**: API キーは `.env` に書き、`.claude/totonoe/config.json` には入れないこと。`config.json` にはモード設定など公開可能な情報のみを置く。
+> `gemini-2.5-pro` は project / tier によって free tier で使えない場合があるため、既定モデルは fallback / shadow 用の軽量な `gemini-2.5-flash-lite` としている。
 
 ## 5. Manager が確認して決定する
 

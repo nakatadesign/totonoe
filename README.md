@@ -227,6 +227,7 @@ Gemini は totonoe の標準構成に含まれる補助 provider です。ただ
 
 - API キーは `.env` に書き、環境変数（`GEMINI_API_KEY`）として読み込みます。`config.json` や Git 管理されるファイルには入れません
 - `.claude/totonoe/config.json` には provider のモードなど公開可能な設定のみを置きます
+- 既定モデルは `gemini-2.5-flash-lite` です。`gemini-2.5-pro` は project / tier によって free tier で使えない場合があるため、fallback / shadow 用の軽量な既定値として採用しています
 - Gemini は fallback または shadow の用途で使い、Codex（primary）を置き換えるものではありません
 - `GEMINI_API_KEY` が未設定の状態で Gemini が必要な処理に到達すると、スクリプトは明示的にエラーで止まります
 
