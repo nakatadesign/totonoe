@@ -412,27 +412,27 @@ main() {
     [ -n "${GEMINI_API_KEY:-}" ] || die "GEMINI_API_KEY is required when shadow mode uses Gemini"
 
     gemini_request_payload "${prompt_path}" "${schema_path}" > "${gemini_payload}"
-    if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-pro}"; then
+    if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-flash-lite}"; then
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure" "shadow")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "http_failure" "shadow")"
       die "gemini request failed in shadow mode"
     fi
 
     if ! gemini_parse_json_text "${gemini_response}" "${gemini_parsed}"; then
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response" "shadow")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "invalid_response" "shadow")"
       die "gemini shadow response did not contain valid JSON"
     fi
 
     validate_role_json "${role}" "${gemini_parsed}" || {
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed" "shadow")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "shape_check_failed" "shadow")"
       die "gemini shadow response failed shape check"
     }
 
     result_source="${gemini_parsed}"
     result_provider="gemini"
-    result_model="${GEMINI_MODEL:-gemini-2.5-pro}"
+    result_model="${GEMINI_MODEL:-gemini-2.5-flash-lite}"
     final_event_reason="shadow"
     final_event_result="success"
   elif [ "${provider_mode}" = "gemini_cooldown" ]; then
@@ -440,27 +440,27 @@ main() {
     [ -n "${GEMINI_API_KEY:-}" ] || die "GEMINI_API_KEY is required when Gemini fallback is used"
 
     gemini_request_payload "${prompt_path}" "${schema_path}" > "${gemini_payload}"
-    if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-pro}"; then
+    if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-flash-lite}"; then
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure" "${provider_role_arg}")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "http_failure" "${provider_role_arg}")"
       die "gemini request failed during cooldown"
     fi
 
     if ! gemini_parse_json_text "${gemini_response}" "${gemini_parsed}"; then
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response" "${provider_role_arg}")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "invalid_response" "${provider_role_arg}")"
       die "gemini response did not contain valid JSON"
     fi
 
     validate_role_json "${role}" "${gemini_parsed}" || {
       append_event_log_safe "$(events_path "${job_name}")" \
-        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed" "${provider_role_arg}")"
+        "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "shape_check_failed" "${provider_role_arg}")"
       die "gemini response failed shape check"
     }
 
     result_source="${gemini_parsed}"
     result_provider="gemini"
-    result_model="${GEMINI_MODEL:-gemini-2.5-pro}"
+    result_model="${GEMINI_MODEL:-gemini-2.5-flash-lite}"
     final_event_reason="cooldown_active"
     final_event_result="success"
   else
@@ -494,27 +494,27 @@ main() {
       [ -n "${GEMINI_API_KEY:-}" ] || die "GEMINI_API_KEY is required when Gemini fallback is used"
 
       gemini_request_payload "${prompt_path}" "${schema_path}" > "${gemini_payload}"
-      if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-pro}"; then
+      if ! gemini_http_call "${gemini_payload}" "${gemini_response}" "${gemini_error}" "${GEMINI_MODEL:-gemini-2.5-flash-lite}"; then
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "http_failure" "${provider_role_arg}")"
+          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "http_failure" "${provider_role_arg}")"
         die "gemini fallback request failed"
       fi
 
       if ! gemini_parse_json_text "${gemini_response}" "${gemini_parsed}"; then
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "invalid_response" "${provider_role_arg}")"
+          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "invalid_response" "${provider_role_arg}")"
         die "gemini fallback response did not contain valid JSON"
       fi
 
       validate_role_json "${role}" "${gemini_parsed}" || {
         append_event_log_safe "$(events_path "${job_name}")" \
-          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-pro}" "failed" "shape_check_failed" "${provider_role_arg}")"
+          "$(ai_event_json "${job_name}" "${role}" "gemini" "${GEMINI_MODEL:-gemini-2.5-flash-lite}" "failed" "shape_check_failed" "${provider_role_arg}")"
         die "gemini fallback response failed shape check"
       }
 
       result_source="${gemini_parsed}"
       result_provider="gemini"
-      result_model="${GEMINI_MODEL:-gemini-2.5-pro}"
+      result_model="${GEMINI_MODEL:-gemini-2.5-flash-lite}"
       final_event_reason="fallback_${result_codex_reason}"
       final_event_result="success"
     fi
