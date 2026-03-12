@@ -75,6 +75,7 @@ AGENTS.totonoe.template.md  →  対象リポジトリの AGENTS.md にマージ
 **3. エンジニア定義をカスタマイズする**
 
 `.claude/agents/GENERIC-ENGINEER.md` を対象リポジトリの技術スタックに合わせて書き換えます。専門エンジニア（SECURITY-ENGINEER / TEST-ENGINEER / PERF-ENGINEER / REFACTOR-ENGINEER）は必要なものだけ残してください。
+標準で含まれる agent には、それぞれの専門性に合わせた判断原則とスタンスがあらかじめ入っています。必要に応じて、対象プロジェクト向けに語調や守備範囲を調整してください。
 
 **4. 環境変数を設定する**
 
