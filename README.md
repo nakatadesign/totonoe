@@ -27,6 +27,8 @@ Claude Code を実装役、Codex CLI を主評価役、Gemini を fallback と S
 - **完了判定** は Manager が厳格な4条件で判断する。Engineer の自己申告では完了にならない
 - **Codex のトークン上限到達時** は自動で Gemini にフォールバックし、ループを止めない
 
+> 例: Reviewer は毎回 `S / A / B / C` のいずれかを返しますが、それだけでは `done` にはなりません。`done` は「critical_count が 0」「quality gate が通っている」「Judge が `done` を推奨している」「Manager の spot check がある」という条件が揃ったときだけ確定します。
+
 Python や追加フレームワークへの依存はありません。`setup.sh` を一度実行するだけで、既存のリポジトリにそのまま導入できます。
 
 ---
@@ -112,15 +114,50 @@ direnv allow       # direnv を使う場合
 ジョブを初期化したら、`render_loop_prompt.sh` の出力をそのまま Claude Code に渡してください。
 この出力は先頭が `totonoe start` で始まり、Claude Code が loop を開始または再開するための明示トリガーになります。
 
-この出力には、現在の job の goal、state、次に実行すべき `totonoe tick` が含まれます。
+この出力には、現在の job の目的、対象、必須対応、制約、完了条件、現在状態、次に実行すべき手順が含まれます。
 Claude Code はその内容を起点に loop を開始します。
 
-イメージ:
+Claude Code に貼り付ける内容の冒頭は次のようになります。
+`totonoe start` だけを送るのではなく、このあとに続く出力全文をそのまま貼り付けてください。
+以下は読みやすさのために簡略化したサンプルです。実際の `現在状態` には `state.json` の内容が JSON で入ります。
 
 ```text
 totonoe start
-active job: sample-feature
-...
+ジョブ名: sample-feature
+リポジトリルート: /path/to/repo
+
+目的:
+検索フォーム付きの一覧画面を実装し、totonoe を通して品質確認まで完了する。
+
+対象:
+- `app/search/page.tsx`
+- `components/search-form.tsx`
+- 必要なら関連テストと補助コード
+
+必須対応:
+- 検索フォームを実装する
+- 入力値に応じて一覧を絞り込めるようにする
+- summary と quality gate を記録する
+
+制約:
+- 無関係な UI 改修を混ぜない
+- runtime の state を手動編集しない
+
+完了条件:
+- build/test の結果が記録されている
+- reviewer / judge / manager のフローを完了している
+
+現在状態:
+{
+  "current_round": 0,
+  "status": "init",
+  "last_decision": null
+}
+
+次の手順:
+1. state を確認する
+2. 実装して summary を記録する
+3. reviewer と judge を実行する
 ```
 
 詳しい運用手順は [`RUNBOOK.md`](./.claude/totonoe/RUNBOOK.md) にまとめています。

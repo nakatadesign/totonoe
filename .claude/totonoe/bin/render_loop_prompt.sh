@@ -46,20 +46,19 @@ main() {
   cat <<EOF
 totonoe start
 
-active job: ${job_name}
-repo root: ${REPO_ROOT}
+ジョブ名: ${job_name}
+リポジトリルート: ${REPO_ROOT}
 
-interpretation:
-- このメッセージ全体を、現在の job の loop 開始または再開指示として扱う
-- \`totonoe start\` は、Claude Code が totonoe の tick を開始するための明示トリガーである
+このメッセージは、現在の job の loop 開始または再開指示です。
+\`totonoe start\` は、Claude Code が totonoe のループを開始するための明示トリガーです。
+以下の「目的 / 対象 / 必須対応 / 制約 / 完了条件」を優先し、その下の「現在状態」と「次の手順」に従って進めてください。
 
-goal:
 ${goal_text}
 
-state:
+現在状態:
 $(printf '%s\n' "${state_json}" | jq '.')
 
-totonoe tick:
+次の手順:
 1. \`.claude/totonoe/bin/status.sh --job-name ${job_name} --json\` で state を読む
 2. \`status=done\` なら完了報告して止まる
 3. \`status=human\` なら判断待ちとして止まる
@@ -68,7 +67,7 @@ totonoe tick:
 6. \`status=judging\` なら \`run_judge.sh --job-name ${job_name}\` から再開する
 7. \`status=manager_review\` なら \`.claude/agents/MANAGER.md\` の Manager に委譲する
 
-current status guidance:
+補足:
 - 現在の status は \`${current_status}\`
 - provider 状態も見たい場合は \`.claude/totonoe/bin/status.sh --job-name ${job_name} --provider-state\` を使う
 

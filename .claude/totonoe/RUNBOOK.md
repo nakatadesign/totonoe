@@ -14,7 +14,7 @@
 .claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
 ```
 
-出力は `totonoe start` で始まる。これをそのまま Claude Code に貼り付けると、現在の job の loop を開始または再開できる。
+出力は `totonoe start` で始まり、`ジョブ名:`, `目的:`, `対象:`, `必須対応:`, `制約:`, `完了条件:`, `現在状態:`, `次の手順:` が続く。これをそのまま Claude Code に貼り付けると、現在の job の loop を開始または再開できる。
 
 provider 状態も一緒に見たい場合:
 
