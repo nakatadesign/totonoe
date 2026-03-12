@@ -236,9 +236,15 @@ Gemini は totonoe の標準構成に含まれる補助 provider です。ただ
 
 `config.json` で `reviewer.mode: "shadow"` を設定すると、totonoe の Shadow Mode が有効になります。
 
-通常の fallback モードでは Codex が使えないときだけ Gemini に切り替えますが、Shadow Mode では Codex（primary）と Gemini（shadow）を**常に両方**動かし、比較用の結果を round ディレクトリに保存します。ただし `done` 判定や state 遷移には primary（Codex）の結果だけを使います。
+通常の fallback モードでは Codex が使えないときだけ Gemini に切り替えますが、Shadow Mode では原則として Codex（primary）と Gemini（shadow）を両方動かし、比較用の結果を round ディレクトリに保存します。ただし primary が Gemini fallback を使った batch では shadow を自動スキップします（Gemini 対 Gemini の比較に観測価値がないため）。`done` 判定や state 遷移には primary（Codex）の結果だけを使います。
 
 目的は「どちらが何を見落とすか」を観測することです。将来的に両者の評価を正式採用する consensus mode への布石として位置づけています。
+
+Shadow Mode の注意点:
+
+- primary が Gemini fallback を使った batch では、shadow 実行を自動スキップします。Gemini 対 Gemini の比較には観測価値がないためです
+- shadow 比較は batch ごとに `success` / `skipped` / `failed` がありえます。各 round の `reviewer_shadow_status.json` で確認できます
+- shadow mode は比較観測機能であり、主系判定には常に primary の結果を使います。shadow の失敗や欠損で loop が止まることはありません
 
 ---
 

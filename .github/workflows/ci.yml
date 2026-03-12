@@ -55,3 +55,51 @@ jobs:
               --quality-test skipped
             .claude/totonoe/bin/status.sh --job-name smoke --json --provider-state >/dev/null
           )
+
+      - name: Smoke test shadow status generation
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+          (
+            cd "${target}"
+            # shadow mode を有効にする
+            jq '.reviewer.mode = "shadow"' .claude/totonoe/config.json > /tmp/_cfg.json && mv /tmp/_cfg.json .claude/totonoe/config.json
+
+            .claude/totonoe/bin/init_job.sh --job-name shadow-smoke --goal-text "shadow ci test"
+            printf 'summary\n' > .claude/totonoe/runtime/shadow-smoke/summary.md
+            .claude/totonoe/bin/record_claude_round.sh \
+              --job-name shadow-smoke \
+              --summary-file .claude/totonoe/runtime/shadow-smoke/summary.md \
+              --changed-file CLAUDE.totonoe.template.md \
+              --quality-analyze passed \
+              --quality-test skipped
+
+            round_path=".claude/totonoe/runtime/shadow-smoke/rounds/001"
+
+            # write_shadow_status の 3 パターンを検証する
+            source .claude/totonoe/bin/common.sh
+            write_shadow_status() {
+              local rp="$1"; shift; local entries=("$@")
+              if [ "${#entries[@]}" -eq 0 ]; then
+                jq -n '{mode: "shadow", batches: []}' > "${rp}/reviewer_shadow_status.json"
+                return
+              fi
+              printf '%s\n' "${entries[@]}" | jq -s '{mode: "shadow", batches: .}' > "${rp}/reviewer_shadow_status.json"
+            }
+
+            entries=()
+            entries+=("$(jq -nc '{batch:"001",status:"success",provider:"gemini"}')")
+            entries+=("$(jq -nc '{batch:"002",status:"skipped",reason:"primary_used_gemini_fallback"}')")
+            entries+=("$(jq -nc '{batch:"003",status:"failed",reason:"shadow_execution_failed"}')")
+            write_shadow_status "${round_path}" "${entries[@]}"
+
+            sf="${round_path}/reviewer_shadow_status.json"
+            test -f "${sf}"
+            test "$(jq -r '.mode' "${sf}")" = "shadow"
+            test "$(jq '.batches | length' "${sf}")" -eq 3
+            test "$(jq -r '.batches[0].status' "${sf}")" = "success"
+            test "$(jq -r '.batches[1].status' "${sf}")" = "skipped"
+            test "$(jq -r '.batches[1].reason' "${sf}")" = "primary_used_gemini_fallback"
+            test "$(jq -r '.batches[2].status' "${sf}")" = "failed"
+            test "$(jq -r '.batches[2].reason' "${sf}")" = "shadow_execution_failed"
+          )

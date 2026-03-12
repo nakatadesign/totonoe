@@ -88,7 +88,8 @@ build_prompt_file() {
   } | safe_write "${prompt_file}"
 }
 
-# shadow provider で reviewer を実行する（失敗してもループを止めない）
+# shadow provider で reviewer を実行する
+# 戻り値: 0=成功, 1=実行失敗, 2=出力バリデーション失敗
 run_shadow_reviewer() {
   local job_name="$1"
   local batch_label="$2"
@@ -108,18 +109,33 @@ run_shadow_reviewer() {
     --provider-role shadow; then
     warn "shadow reviewer execution failed for batch ${batch_label}"
     rm -f "${shadow_tmp}"
-    return 0
+    return 1
   fi
 
   if ! validate_reviewer_output "${shadow_output_file}"; then
     warn "shadow reviewer output failed validation for batch ${batch_label}"
     rm -f "${shadow_tmp}"
-    return 0
+    return 2
   fi
 
   normalize_reviewer_output "${shadow_output_file}" > "${shadow_tmp}"
   safe_write "${shadow_output_file}" < "${shadow_tmp}"
   rm -f "${shadow_tmp}"
+}
+
+# reviewer_shadow_status.json を round ディレクトリに書き出す
+write_shadow_status() {
+  local round_path="$1"
+  shift
+  local entries=("$@")
+
+  if [ "${#entries[@]}" -eq 0 ]; then
+    jq -n '{mode: "shadow", batches: []}' | safe_write "${round_path}/reviewer_shadow_status.json"
+    return
+  fi
+
+  printf '%s\n' "${entries[@]}" | jq -s '{mode: "shadow", batches: .}' \
+    | safe_write "${round_path}/reviewer_shadow_status.json"
 }
 
 # shadow バッチを集約して reviewer_shadow.json を生成する
@@ -260,11 +276,19 @@ main() {
       critical_count: 0,
       findings: []
     }' | safe_write "${round_path}/reviewer_aggregate.json"
+
+    # shadow mode で変更ファイルがない場合も status を記録する
+    local reviewer_mode_empty
+    reviewer_mode_empty="$(read_reviewer_mode)"
+    if [ "${reviewer_mode_empty}" = "shadow" ]; then
+      write_shadow_status "${round_path}"
+    fi
   else
     local reviewer_mode
     reviewer_mode="$(read_reviewer_mode)"
 
     local shadow_batch_files=()
+    local shadow_status_entries=()
     local batch_index=0
     local i batch_label prompt_file output_file normalized_output
     for ((i = 0; i < ${#changed_files[@]}; i += 3)); do
@@ -301,9 +325,32 @@ main() {
 
       # shadow 実行（shadow mode のときのみ）
       if [ "${reviewer_mode}" = "shadow" ]; then
-        run_shadow_reviewer "${job_name}" "${batch_label}" "${prompt_file}" "${round_path}"
-        local shadow_batch_file="${round_path}/reviewer_batch_${batch_label}_shadow.json"
-        shadow_batch_files+=("${shadow_batch_file}")
+        # primary が実際に使った provider を確認する
+        local actual_provider
+        actual_provider="$(read_provider_state "${job_name}" | jq -r '.last_used_provider')"
+
+        if [ "${actual_provider}" = "gemini" ]; then
+          # primary が Gemini を使った batch では shadow 比較価値が低いためスキップする
+          shadow_status_entries+=("$(jq -nc --arg b "${batch_label}" '{batch: $b, status: "skipped", reason: "primary_used_gemini_fallback"}')")
+          warn "shadow skipped for batch ${batch_label}: primary used gemini"
+        else
+          local shadow_result=0
+          run_shadow_reviewer "${job_name}" "${batch_label}" "${prompt_file}" "${round_path}" || shadow_result=$?
+
+          local shadow_batch_file="${round_path}/reviewer_batch_${batch_label}_shadow.json"
+          case "${shadow_result}" in
+            0)
+              shadow_batch_files+=("${shadow_batch_file}")
+              shadow_status_entries+=("$(jq -nc --arg b "${batch_label}" '{batch: $b, status: "success", provider: "gemini"}')")
+              ;;
+            2)
+              shadow_status_entries+=("$(jq -nc --arg b "${batch_label}" '{batch: $b, status: "failed", reason: "shadow_output_invalid"}')")
+              ;;
+            *)
+              shadow_status_entries+=("$(jq -nc --arg b "${batch_label}" '{batch: $b, status: "failed", reason: "shadow_execution_failed"}')")
+              ;;
+          esac
+        fi
       fi
     done
 
@@ -325,10 +372,13 @@ main() {
       }
     ' "${batch_outputs[@]}" | safe_write "${round_path}/reviewer_aggregate.json"
 
-    # shadow aggregate と summary を生成する（shadow mode のときのみ）
-    if [ "${reviewer_mode}" = "shadow" ] && [ "${#shadow_batch_files[@]}" -gt 0 ]; then
-      build_shadow_aggregate "${round_path}" "${shadow_batch_files[@]}"
-      build_shadow_summary "${round_path}"
+    # shadow aggregate, summary, status を生成する（shadow mode のときのみ）
+    if [ "${reviewer_mode}" = "shadow" ]; then
+      if [ "${#shadow_batch_files[@]}" -gt 0 ]; then
+        build_shadow_aggregate "${round_path}" "${shadow_batch_files[@]}"
+        build_shadow_summary "${round_path}"
+      fi
+      write_shadow_status "${round_path}" "${shadow_status_entries[@]}"
     fi
   fi
 
