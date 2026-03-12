@@ -43,6 +43,9 @@ jobs:
           (
             cd "${target}"
             .claude/totonoe/bin/init_job.sh --job-name smoke --goal-template feature_loop
+            .claude/totonoe/bin/pause_job.sh --job-name smoke --reason "ci pause test"
+            .claude/totonoe/bin/status.sh --job-name smoke --json >/dev/null
+            .claude/totonoe/bin/resume_job.sh --job-name smoke
             printf 'summary\n' > .claude/totonoe/runtime/smoke/summary.md
             .claude/totonoe/bin/record_claude_round.sh \
               --job-name smoke \

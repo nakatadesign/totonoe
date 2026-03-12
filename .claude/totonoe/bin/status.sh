@@ -74,6 +74,9 @@ main() {
       "last_decision: \(.last_decision // "null")",
       "last_reviewer_grade: \(.last_reviewer_grade // "null")",
       "last_critical_count: \(.last_critical_count)",
+      "pause.previous_status: \(.pause.previous_status // "null")",
+      "pause.paused_at: \(.pause.paused_at // "null")",
+      "pause.reason: \(.pause.reason // "null")",
       "job_dir: \($job_dir)"
     ] | join("\n")
   '

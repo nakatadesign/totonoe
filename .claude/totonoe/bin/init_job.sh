@@ -115,6 +115,7 @@ main() {
       current_round: 0,
       max_rounds: $max_rounds,
       status: "init",
+      pause: null,
       last_decision: null,
       last_reviewer_grade: null,
       last_critical_count: 0,

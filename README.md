@@ -160,6 +160,24 @@ totonoe start
 
 詳しい運用手順は [`RUNBOOK.md`](./.claude/totonoe/RUNBOOK.md) にまとめています。
 
+### 途中で止めたいとき
+
+作業中に急いで止めたい場合は、Claude Code に `totonoe stop` と伝えると、その job を `paused` として停止できます。
+`paused` では停止理由と直前の状態が `state.json` に残るため、引き継ぎ時に「どこで止めたか」が分からなくなりにくくなります。
+
+手元で明示的に止める場合:
+
+```bash
+.claude/totonoe/bin/pause_job.sh --job-name sample-feature --reason "外出のため一時停止"
+```
+
+再開するときは、先に paused 状態を戻してから、もう一度 loop 用プロンプトを生成します。
+
+```bash
+.claude/totonoe/bin/resume_job.sh --job-name sample-feature
+.claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
+```
+
 ---
 
 ## リポジトリ構成

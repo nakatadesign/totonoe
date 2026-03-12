@@ -22,6 +22,19 @@ provider 状態も一緒に見たい場合:
 .claude/totonoe/bin/status.sh --job-name sample-feature --provider-state
 ```
 
+急いで止めたい場合は、Claude Code 側で `totonoe stop` と伝えるか、手元で次を実行する。
+
+```bash
+.claude/totonoe/bin/pause_job.sh --job-name sample-feature --reason "user requested stop"
+```
+
+再開するときは、先に paused 状態を戻してから、改めて loop 用プロンプトを生成する。
+
+```bash
+.claude/totonoe/bin/resume_job.sh --job-name sample-feature
+.claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
+```
+
 ## 3. Engineer がラウンドを記録する
 
 ```bash

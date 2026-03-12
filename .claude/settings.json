@@ -6,6 +6,8 @@
     "allow": [
       "Bash(.claude/totonoe/bin/init_job.sh:*)",
       "Bash(.claude/totonoe/bin/status.sh:*)",
+      "Bash(.claude/totonoe/bin/pause_job.sh:*)",
+      "Bash(.claude/totonoe/bin/resume_job.sh:*)",
       "Bash(.claude/totonoe/bin/record_claude_round.sh:*)",
       "Bash(.claude/totonoe/bin/run_ai_exec.sh:*)",
       "Bash(.claude/totonoe/bin/run_reviewer.sh:*)",

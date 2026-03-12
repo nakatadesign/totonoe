@@ -7,6 +7,8 @@ runtime path は `.claude/totonoe/` です。
 
 - `bin/init_job.sh`: job 初期化
 - `bin/status.sh`: state 確認
+- `bin/pause_job.sh`: job を `paused` で一時停止
+- `bin/resume_job.sh`: `paused` から直前状態へ戻す
 - `bin/record_claude_round.sh`: Engineer の summary と quality gate を記録
 - `bin/run_ai_exec.sh`: Codex / Gemini 実行ラッパー
 - `bin/run_reviewer.sh`: Codex Reviewer を 3 ファイル単位で実行
@@ -18,7 +20,7 @@ runtime path は `.claude/totonoe/` です。
 
 ## 状態遷移
 
-`init -> reviewing -> judging -> manager_review -> fix_requested | continue_requested | done | human`
+`init -> reviewing -> judging -> manager_review -> fix_requested | continue_requested | done | human | paused`
 
 ## 方針
 
@@ -27,5 +29,6 @@ runtime path は `.claude/totonoe/` です。
 - Reviewer は read-only で実行する
 - provider は常に `Codex` 優先で、quota/token 系だけ `Gemini` にフォールバックする
 - `done` は 4 条件を満たしたときだけ許可する
+- `paused` は停止理由と直前状態を保持し、引き継ぎしやすい形で一時停止する
 - Engineer は `Generic / Security / Test / Perf / Refactor` に専門化できる
 - `judge.json` の `engineer_type` は推奨値で、最終的な dispatch は Manager が判断する
