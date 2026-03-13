@@ -10,6 +10,14 @@ RUNTIME_ROOT="${TOTONOE_DIR}/runtime"
 GOALS_DIR="${TOTONOE_DIR}/goals"
 SCHEMAS_DIR="${TOTONOE_DIR}/schemas"
 
+# リポジトリルートの .env を自動読み込み（API キー等）
+if [ -f "${REPO_ROOT}/.env" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  source "${REPO_ROOT}/.env"
+  set +a
+fi
+
 JOB_LOCK_MODE=""
 JOB_LOCK_FD=""
 JOB_LOCK_DIR=""

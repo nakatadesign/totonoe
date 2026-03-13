@@ -119,6 +119,10 @@ codex_failure_reason() {
     printf 'quota\n'
     return
   fi
+  if grep -Eiq 'usage[_ -]*limit|hit.*limit' "${stderr_file}" "${stdout_file}" 2>/dev/null; then
+    printf 'usage_limit\n'
+    return
+  fi
   printf '\n'
 }
 
