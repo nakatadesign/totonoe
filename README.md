@@ -2,10 +2,10 @@
 
 **AIエージェントが実装・評価を分担する開発ループ設計**
 
-`totonoe` は Bash ベースで実装されているため、Claude Code の UI/UX を入口に、実装・レビュー・判定のループを回せます。
-Claude Code を実装役、Codex CLI を評価役として分担させるための、開発ループ設計テンプレートです。Gemini は fallback / shadow 用の optional provider として利用できます。
+開発作業を整える `totonoe` は、Claude Code（実装）と Codex CLI（評価）の役割を分離した Bash ベースの開発ループテンプレートです。
+Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fallback）と、評価を並走比較する shadow mode として利用できます。
 
-実装は Claude Code、評価は Codex——役割を分けることで、同じ AI が自分の出力を採点する「セルフ採点問題」を回避します。品質基準を満たすまでループが続き、完了の判断は厳格な条件に基づきます。
+同じ AI に自分の出力を採点させない——「セルフ採点問題」を構造で解決します。品質基準を満たすまでループは続き、完了の判断は厳格な条件だけが下します。
 
 ---
 
@@ -47,7 +47,7 @@ Python や追加フレームワークへの依存はありません。`setup.sh`
 | ----------- | ------------------------------------ | ----------------- |
 | Claude Code | 実装・修正（Engineer）               | Claude Max 推奨   |
 | Codex CLI   | レビュー・判定（Reviewer / Analyst） | ChatGPT Plus 以上 |
-| Gemini API  | fallback / shadow 用（optional）      | API キーのみ      |
+| Gemini API  | fallback / shadow 用（optional）     | API キーのみ      |
 
 `GEMINI_API_KEY` がなくても Codex-only の通常運用は成立します。Gemini を設定すると、Codex がトークン上限やレート制限で使えないときに自動で引き継ぐ fallback として機能します。shadow mode では Codex と Gemini の評価を並走比較できます。
 
@@ -227,7 +227,7 @@ Gemini は fallback / shadow 用の optional provider です。`GEMINI_API_KEY` 
 
 - API キーは `.env` に書き、環境変数（`GEMINI_API_KEY`）として読み込みます。`config.json` や Git 管理されるファイルには入れません
 - `.claude/totonoe/config.json` には provider のモードなど公開可能な設定のみを置きます
-- 既定モデルは `gemini-2.5-flash-lite` です。`gemini-2.5-pro` は project / tier によって free tier で使えない場合があるため、fallback / shadow 用の軽量な既定値として採用しています
+- 既定モデルは `gemini-2.5-flash-lite` です。利用可能なトークン量が最も多いモデルをデフォルトとして採用しています。ご自身の project / tier に合わせて変更してください
 - Gemini は fallback または shadow の用途で使い、Codex（primary）を置き換えるものではありません
 - `GEMINI_API_KEY` が未設定の状態で Gemini が必要な処理に到達すると、スクリプトは明示的にエラーで止まります
 
