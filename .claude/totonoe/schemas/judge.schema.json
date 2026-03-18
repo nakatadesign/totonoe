@@ -39,9 +39,6 @@
       "type": "string",
       "enum": ["security", "test", "performance", "refactor", "generic"],
       "description": "Analyst が推奨する Engineer の専門種別。すべての recommendation で必須。不正値は runtime が generic に補正する。"
-    },
-    "spot_check_required": {
-      "type": "boolean"
     }
   }
 }
