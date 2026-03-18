@@ -445,6 +445,75 @@ read_reviewer_mode() {
 }
 
 
+RUNNER_LOCK_MODE=""
+RUNNER_LOCK_FD=""
+RUNNER_LOCK_DIR=""
+
+runner_lock_path() {
+  local job_name="$1"
+  local role="$2"
+  printf '%s/%s.runner.lock\n' "$(job_dir "${job_name}")" "${role}"
+}
+
+acquire_runner_lock() {
+  local job_name="$1"
+  local role="$2"
+  local lock_file
+  lock_file="$(runner_lock_path "${job_name}" "${role}")"
+
+  ensure_job_exists "${job_name}"
+
+  if [ "${TOTONOE_FORCE_MKDIR_LOCK:-}" != "1" ] && command -v flock >/dev/null 2>&1; then
+    exec {RUNNER_LOCK_FD}> "${lock_file}"
+    if ! flock -nx "${RUNNER_LOCK_FD}"; then
+      eval "exec ${RUNNER_LOCK_FD}>&-"
+      RUNNER_LOCK_FD=""
+      die "${role} runner is already running for job: ${job_name}"
+    fi
+    RUNNER_LOCK_MODE="flock"
+    return
+  fi
+
+  RUNNER_LOCK_DIR="${lock_file}.d"
+  RUNNER_LOCK_MODE="mkdir"
+  if ! mkdir "${RUNNER_LOCK_DIR}" 2>/dev/null; then
+    # stale lock の回収を試みる
+    if _try_reclaim_stale_lock "${RUNNER_LOCK_DIR}"; then
+      if ! mkdir "${RUNNER_LOCK_DIR}" 2>/dev/null; then
+        die "${role} runner is already running for job: ${job_name}"
+      fi
+    else
+      die "${role} runner is already running for job: ${job_name}"
+    fi
+  fi
+  _write_lock_metadata "${RUNNER_LOCK_DIR}"
+}
+
+release_runner_lock() {
+  case "${RUNNER_LOCK_MODE}" in
+    flock)
+      if [ -n "${RUNNER_LOCK_FD}" ]; then
+        flock -u "${RUNNER_LOCK_FD}" || true
+        eval "exec ${RUNNER_LOCK_FD}>&-"
+        RUNNER_LOCK_FD=""
+      fi
+      ;;
+    mkdir)
+      if [ -n "${RUNNER_LOCK_DIR}" ]; then
+        rm -f "${RUNNER_LOCK_DIR}/owner.json" 2>/dev/null || true
+        rmdir "${RUNNER_LOCK_DIR}" 2>/dev/null || true
+      fi
+      RUNNER_LOCK_DIR=""
+      ;;
+    "")
+      ;;
+    *)
+      warn "unknown runner lock mode: ${RUNNER_LOCK_MODE}"
+      ;;
+  esac
+  RUNNER_LOCK_MODE=""
+}
+
 release_job_lock() {
   case "${JOB_LOCK_MODE}" in
     flock)

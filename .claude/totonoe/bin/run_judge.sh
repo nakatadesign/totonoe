@@ -105,6 +105,13 @@ main() {
   validate_job_name "${job_name}"
   ensure_job_exists "${job_name}"
 
+  acquire_runner_lock "${job_name}" "judge"
+  _judge_cleanup() {
+    release_runner_lock
+    release_job_lock
+  }
+  trap _judge_cleanup EXIT
+
   local state_file state_json status current_round target_round round_path prompt_file normalized_output
   state_file="$(state_path "${job_name}")"
   state_json="$(safe_read "${state_file}")"
@@ -149,7 +156,6 @@ main() {
   recommendation="$(safe_read "${round_path}/judge.json" | jq -r '.recommendation')"
 
   acquire_job_lock "${job_name}"
-  trap release_job_lock EXIT
 
   state_json="$(safe_read "${state_file}")"
   status="$(printf '%s\n' "${state_json}" | jq -r '.status')"
@@ -184,7 +190,6 @@ main() {
       }')"
 
   release_job_lock
-  trap - EXIT
 
   rm -f "${normalized_output}"
 

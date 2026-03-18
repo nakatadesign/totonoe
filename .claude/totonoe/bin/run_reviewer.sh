@@ -248,6 +248,13 @@ main() {
   validate_job_name "${job_name}"
   ensure_job_exists "${job_name}"
 
+  acquire_runner_lock "${job_name}" "reviewer"
+  _reviewer_cleanup() {
+    release_runner_lock
+    release_job_lock
+  }
+  trap _reviewer_cleanup EXIT
+
   local state_file state_json status current_round target_round round_path changed_file_list
   state_file="$(state_path "${job_name}")"
   state_json="$(safe_read "${state_file}")"
@@ -389,7 +396,6 @@ main() {
   batch_count="$(find "${round_path}" -maxdepth 1 -type f -name 'reviewer_batch_*.json' ! -name '*_shadow.json' | wc -l | tr -d ' ')"
 
   acquire_job_lock "${job_name}"
-  trap release_job_lock EXIT
 
   state_json="$(safe_read "${state_file}")"
   status="$(printf '%s\n' "${state_json}" | jq -r '.status')"
@@ -432,7 +438,6 @@ main() {
       }')"
 
   release_job_lock
-  trap - EXIT
 
   printf 'reviewer completed for job %s round %03d\n' "${job_name}" "${target_round}"
 }
