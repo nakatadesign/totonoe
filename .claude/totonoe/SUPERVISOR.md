@@ -47,3 +47,5 @@
    - 誤った専門 Engineer に飛ばすより `generic` の方が安全
 
 標準語彙は `security / test / performance / refactor / generic` に固定する。標準語彙以外は使わない。
+
+`recommendation` が `fix` 以外（`continue` / `done` / `human`）のときは常に `engineer_type: "generic"` を返す。
