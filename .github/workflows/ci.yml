@@ -4,13 +4,16 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   shell-and-smoke:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
       - name: Install jq
         run: |
@@ -21,6 +24,12 @@ jobs:
         run: |
           bash -n setup.sh
           bash -n .claude/totonoe/bin/*.sh
+
+      - name: Validate SQL migrations syntax
+        run: |
+          for f in .claude/totonoe/migrations/*.sql; do
+            sqlite3 ":memory:" ".read ${f}" || { echo "FAIL: ${f}"; exit 1; }
+          done
 
       - name: Validate JSON files
         run: |
@@ -54,6 +63,46 @@ jobs:
               --quality-analyze passed \
               --quality-test skipped
             .claude/totonoe/bin/status.sh --job-name smoke --json --provider-state >/dev/null
+          )
+
+      - name: Smoke test knowledge DB initialization
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+          (
+            cd "${target}"
+
+            # init_knowledge.sh で knowledge.db を作成する
+            .claude/totonoe/bin/init_knowledge.sh
+
+            # knowledge.db が作成されていること
+            test -f .claude/totonoe/knowledge.db
+
+            # schema_version が 1 であること
+            ver="$(sqlite3 .claude/totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')"
+            test "${ver}" = "1"
+
+            # 全テーブルが存在すること
+            tables="$(sqlite3 .claude/totonoe/knowledge.db ".tables")"
+            echo "${tables}" | grep -q "review_rounds"
+            echo "${tables}" | grep -q "review_findings"
+            echo "${tables}" | grep -q "verdicts"
+            echo "${tables}" | grep -q "schema_version"
+
+            # review_findings に resolved カラムが存在すること
+            sqlite3 .claude/totonoe/knowledge.db "SELECT resolved FROM review_findings LIMIT 0;"
+
+            # journal_mode が WAL であること
+            mode="$(sqlite3 .claude/totonoe/knowledge.db 'PRAGMA journal_mode;')"
+            test "${mode}" = "wal"
+
+            # 冪等性: 再実行してもエラーにならないこと
+            .claude/totonoe/bin/init_knowledge.sh
+
+            # --force で再作成できること
+            .claude/totonoe/bin/init_knowledge.sh --force
+            ver2="$(sqlite3 .claude/totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')"
+            test "${ver2}" = "1"
           )
 
       - name: Smoke test shadow status generation
