@@ -86,12 +86,7 @@ cp .env.example .env
 # .env を編集して必要な値を設定
 ```
 
-totonoe のスクリプトは `.env` を自動で読み込みません。以下のいずれかの方法で環境変数を読み込んでください。
-
-```bash
-source .env        # 手動で読み込む（推奨）
-direnv allow       # direnv を使う場合
-```
+totonoe のスクリプトはリポジトリルートの `.env` を自動で読み込みます。手動で `source .env` を実行する必要はありません。
 
 > **注意**: API キーなどの秘密情報は `.env` に書き、`.claude/totonoe/config.json` には入れないでください。`config.json` にはモード設定など公開可能な情報のみを置きます。`.env` は `.gitignore` で Git 管理から除外されています。
 
