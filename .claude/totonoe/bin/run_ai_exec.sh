@@ -147,6 +147,7 @@ validate_role_json() {
         and (.can_defer | type == "array")
         and (.next_step | type == "string")
         and (.reason | type == "string")
+        and (.engineer_type | type == "string")
       ' "${json_file}" >/dev/null; then
         return 1
       fi

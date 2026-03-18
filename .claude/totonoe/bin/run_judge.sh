@@ -23,6 +23,8 @@ validate_judge_output() {
     and (.next_step | type == "string")
     and (all(.must_fix[]?; type == "string"))
     and (all(.can_defer[]?; type == "string"))
+    and (.engineer_type == "security" or .engineer_type == "test" or .engineer_type == "performance" or .engineer_type == "refactor" or .engineer_type == "generic")
+    and (.spot_check_required | type == "boolean")
   ' "${json_file}" >/dev/null
 }
 
@@ -33,6 +35,14 @@ normalize_judge_output() {
     | .next_step |= tostring
     | .must_fix |= map(tostring)
     | .can_defer |= map(tostring)
+    | .engineer_type = (
+        if .engineer_type == "security" or .engineer_type == "test"
+           or .engineer_type == "performance" or .engineer_type == "refactor"
+           or .engineer_type == "generic"
+        then .engineer_type
+        else "generic"
+        end
+      )
     | .spot_check_required = (.recommendation == "done")
   ' "${json_file}"
 }
@@ -58,9 +68,11 @@ build_prompt_file() {
     printf '```json\n%s\n```\n\n' "${aggregate_json}"
     printf '## Output Rules\n\n'
     printf -- '- `recommendation` must be one of `fix`, `continue`, `done`, `human`\n'
+    printf -- '- `engineer_type` is required. Must be one of `security`, `test`, `performance`, `refactor`, `generic`\n'
     printf -- '- `must_fix` should contain only issues that block completion\n'
     printf -- '- `can_defer` should contain only lower-priority items\n'
     printf -- '- `next_step` should be one sentence\n'
+    printf -- '- `spot_check_required` is computed at runtime. Do NOT include it in your output\n'
   } | safe_write "${prompt_file}"
 }
 
@@ -125,13 +137,13 @@ main() {
     die "judge execution failed"
   fi
 
+  normalize_judge_output "${round_path}/judge.json" > "${normalized_output}"
+  safe_write "${round_path}/judge.json" < "${normalized_output}"
+
   validate_judge_output "${round_path}/judge.json" || {
     rm -f "${normalized_output}"
     die "judge output failed validation"
   }
-
-  normalize_judge_output "${round_path}/judge.json" > "${normalized_output}"
-  safe_write "${round_path}/judge.json" < "${normalized_output}"
 
   local recommendation
   recommendation="$(safe_read "${round_path}/judge.json" | jq -r '.recommendation')"

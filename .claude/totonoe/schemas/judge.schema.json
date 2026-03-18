@@ -8,8 +8,7 @@
     "must_fix",
     "can_defer",
     "next_step",
-    "engineer_type",
-    "spot_check_required"
+    "engineer_type"
   ],
   "properties": {
     "recommendation": {
@@ -38,7 +37,8 @@
     },
     "engineer_type": {
       "type": "string",
-      "description": "Analyst が推奨する Engineer の専門種別。recommendation が fix のとき設定される。標準値: security / test / performance / refactor / generic。未設定または unknown の場合は generic として扱う。"
+      "enum": ["security", "test", "performance", "refactor", "generic"],
+      "description": "Analyst が推奨する Engineer の専門種別。recommendation が fix のとき設定される。"
     },
     "spot_check_required": {
       "type": "boolean"
