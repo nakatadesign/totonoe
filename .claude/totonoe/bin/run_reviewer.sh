@@ -81,10 +81,10 @@ build_prompt_file() {
       fi
     done
     printf '## Output Rules\n\n'
-    printf '- `severity` must be one of `critical`, `high`, `medium`, `low`\n'
-    printf '- `overall_grade` must be one of `S`, `A`, `B`, `C`\n'
-    printf '- `critical_count` must match the number of critical findings\n'
-    printf '- If there are no findings, return an empty `findings` array and explain that in `summary`\n'
+    printf -- '- `severity` must be one of `critical`, `high`, `medium`, `low`\n'
+    printf -- '- `overall_grade` must be one of `S`, `A`, `B`, `C`\n'
+    printf -- '- `critical_count` must match the number of critical findings\n'
+    printf -- '- If there are no findings, return an empty `findings` array and explain that in `summary`\n'
   } | safe_write "${prompt_file}"
 }
 
