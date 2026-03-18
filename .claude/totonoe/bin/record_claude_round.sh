@@ -133,6 +133,19 @@ main() {
   printf '%s\n' "${summary_markdown}" | safe_write "${round_path}/claude_summary.md"
   printf '%s\n' "${normalized_files[@]}" | safe_write "${round_path}/changed_files.txt"
 
+  # 変更ファイルの snapshot を保存する（reviewer が作業ツリーではなく snapshot を読むため）
+  local snap_dir="${round_path}/snapshot"
+  mkdir -p "${snap_dir}"
+  local snap_file abs_src snap_dest
+  for snap_file in "${normalized_files[@]}"; do
+    abs_src="${REPO_ROOT}/${snap_file}"
+    snap_dest="${snap_dir}/${snap_file}"
+    if [ -f "${abs_src}" ]; then
+      mkdir -p "$(dirname -- "${snap_dest}")"
+      safe_read "${abs_src}" | safe_write "${snap_dest}"
+    fi
+  done
+
   local changed_json
   changed_json="$(printf '%s\n' "${normalized_files[@]}" | jq -R . | jq -s .)"
 

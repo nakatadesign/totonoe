@@ -70,14 +70,14 @@ build_prompt_file() {
     printf '## Review Batch\n\n'
     printf 'Batch: %s\n\n' "${batch_label}"
     for file_path in "${batch_files[@]}"; do
-      absolute_path="${REPO_ROOT}/${file_path}"
+      local snapshot_path="${round_path}/snapshot/${file_path}"
       printf '### File: %s\n\n' "${file_path}"
-      if [ -f "${absolute_path}" ]; then
+      if [ -f "${snapshot_path}" ]; then
         printf '```text\n'
-        cat -- "${absolute_path}"
+        safe_read "${snapshot_path}"
         printf '\n```\n\n'
       else
-        printf '_This file is not present in the current working tree. Treat it as deleted or moved._\n\n'
+        printf '_This file is not present in the snapshot. Treat it as deleted or moved._\n\n'
       fi
     done
     printf '## Output Rules\n\n'
