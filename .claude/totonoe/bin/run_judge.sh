@@ -145,12 +145,13 @@ main() {
   fi
 
   normalize_judge_output "${round_path}/judge.json" > "${normalized_output}"
-  safe_write "${round_path}/judge.json" < "${normalized_output}"
 
-  validate_judge_output "${round_path}/judge.json" || {
+  validate_judge_output "${normalized_output}" || {
     rm -f "${normalized_output}"
     die "judge output failed validation"
   }
+
+  safe_write "${round_path}/judge.json" < "${normalized_output}"
 
   local recommendation
   recommendation="$(safe_read "${round_path}/judge.json" | jq -r '.recommendation')"
