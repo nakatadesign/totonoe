@@ -18,7 +18,7 @@ Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fall
 
 ## このテンプレートでできること
 
-**Manager → Engineer → Reviewer → Analyst → Manager** のループを bash スクリプトだけで回します。
+**Manager → Engineer → Reviewer → Analyst → Manager** のループを bash スクリプトだけで回します。Analyst は `run_judge.sh` が `SUPERVISOR.md` の指示に従って実行します。
 
 - **実装** は Claude Code（Engineer）が担当する
 - **評価** は Codex（Reviewer / Analyst）が独立して行う
