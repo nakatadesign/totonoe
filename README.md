@@ -1,6 +1,9 @@
-# totonoe v2.0.0
+# totonoe
 
-**AIエージェントが実装・評価を分担する開発ループ設計**（knowledge DB 拡張を含む）
+**AIエージェントが実装・評価を分担する開発ループ設計**
+
+現在の安定版は **v2.0.0** です。v2 では SQLite ベースの project-local knowledge DB を追加し、Reviewer / Analyst / Manager が過去の知見を参照できるようになりました。
+詳細な変更点は [GitHub Releases の v2.0.0](https://github.com/nakatadesign/totonoe/releases/tag/v2.0.0) を参照してください。
 
 開発作業を整える `totonoe` は、Claude Code（実装）と Codex CLI（評価）の役割を分離した Bash ベースの開発ループテンプレートです。
 Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fallback）と、評価を並走比較する shadow mode として利用できます。
