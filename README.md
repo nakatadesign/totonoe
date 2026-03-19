@@ -2,8 +2,8 @@
 
 **AIエージェントが実装・評価を分担する開発ループ設計**
 
-現在の公開安定版は **v2.0.0** です。`main` ブランチでは v3 系の開発を進めており、runtime core を `.claude/totonoe/` から `.totonoe/` へ移動して Claude Code の permission UX との衝突を解消しています。
-v2.0.0 の詳細は [GitHub Releases の v2.0.0](https://github.com/nakatadesign/totonoe/releases/tag/v2.0.0) を参照してください。
+現在の安定版は **v3.0.0** です。v3 では runtime core を `.claude/totonoe/` から `.totonoe/` へ移動し、Claude Code の permission UX との衝突を解消しました。既存ユーザーは `setup.sh --migrate-v2` で自動移行できます。
+詳細な変更点は [GitHub Releases の v3.0.0](https://github.com/nakatadesign/totonoe/releases/tag/v3.0.0) を参照してください。
 
 開発作業を整える `totonoe` は、Claude Code（実装）と Codex CLI（評価）の役割を分離した Bash ベースの開発ループテンプレートです。
 Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fallback）と、評価を並走比較する shadow mode として利用できます。
