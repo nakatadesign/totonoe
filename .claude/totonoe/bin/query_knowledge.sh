@@ -116,6 +116,28 @@ _query_verdicts() {
     '"- \(.recommendation) (\(.engineer_type)): \(.reason) (job: \(.job_name), round: \(.round))"'
 }
 
+# --- lessons クエリ ---
+_query_lessons() {
+  local limit="$1"
+
+  local json_rows
+  json_rows="$(_kdb_exec "
+    SELECT json_object(
+      'job_name', job_name,
+      'lesson', lesson,
+      'created_at', created_at
+    )
+    FROM lessons
+    ORDER BY created_at DESC
+    LIMIT ${limit};
+  ")"
+
+  [ -n "${json_rows}" ] || return 1
+
+  printf '%s\n' "${json_rows}" | jq -r \
+    '"- [\(.job_name)] \(.lesson)"'
+}
+
 # --- summary クエリ ---
 _query_summary() {
   local job_count round_count grade_dist severity_top engineer_top
@@ -201,7 +223,7 @@ main() {
     esac
   done
 
-  [ -n "${query_type}" ] || die "--type は必須です（findings / verdicts / summary）"
+  [ -n "${query_type}" ] || die "--type は必須です（findings / verdicts / lessons / summary）"
 
   # 引数検証
   [[ "${limit}" =~ ^[0-9]+$ ]] && [ "${limit}" -gt 0 ] \
@@ -224,11 +246,14 @@ main() {
     verdicts)
       output="$(_query_verdicts "${limit}" "${engineer_type}")" || exit 1
       ;;
+    lessons)
+      output="$(_query_lessons "${limit}")" || exit 1
+      ;;
     summary)
       output="$(_query_summary)" || exit 1
       ;;
     *)
-      die "不明な --type: ${query_type}（findings / verdicts / summary のいずれか）"
+      die "不明な --type: ${query_type}（findings / verdicts / lessons / summary のいずれか）"
       ;;
   esac
 

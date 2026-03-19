@@ -148,6 +148,25 @@ cp .env.example .env
 .claude/totonoe/bin/query_knowledge.sh --type verdicts --engineer-type security --limit 5
 ```
 
+### 教訓の記録
+
+ジョブを `done` で完了するときに `--lesson` を指定すると、教訓が knowledge.db に保存されます。同時にそのジョブの review_findings が「解消済み」に更新されます。
+
+```bash
+.claude/totonoe/bin/apply_manager_decision.sh \
+  --job-name sample-feature \
+  --decision done \
+  --lesson "API 境界では必ず入力バリデーションを行うこと"
+```
+
+`--lesson` を省略しても done は成立します（review_findings の resolved 更新のみ実行されます）。
+
+過去の教訓を確認するには:
+
+```bash
+.claude/totonoe/bin/query_knowledge.sh --type lessons --limit 5
+```
+
 ### Judge への自動注入
 
 knowledge が有効なジョブでは、`run_judge.sh` が過去の判定傾向を Judge プロンプトに自動注入します（最大 500 文字、直近 3 件）。注入テキストにはバイアス防止指示が含まれ、Judge は今回の指摘内容に基づいて独立に判断します。

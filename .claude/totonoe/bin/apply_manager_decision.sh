@@ -10,7 +10,7 @@ usage() {
   cat <<'EOF'
 Usage:
   .claude/totonoe/bin/apply_manager_decision.sh --job-name <name> --record-spot-check [--force]
-  .claude/totonoe/bin/apply_manager_decision.sh --job-name <name> --decision <fix|continue|done|human> [--reason "<text>"] [--from-judge <path>] [--force]
+  .claude/totonoe/bin/apply_manager_decision.sh --job-name <name> --decision <fix|continue|done|human> [--reason "<text>"] [--lesson "<text>"] [--from-judge <path>] [--force]
 EOF
 }
 
@@ -58,6 +58,7 @@ main() {
   local record_spot_check="0"
   local decision=""
   local reason=""
+  local lesson=""
   local from_judge=""
   local force="0"
 
@@ -77,6 +78,10 @@ main() {
         ;;
       --reason)
         reason="${2:-}"
+        shift 2
+        ;;
+      --lesson)
+        lesson="${2:-}"
         shift 2
         ;;
       --from-judge)
@@ -243,6 +248,15 @@ main() {
         applied_decision: $applied,
         reason: $reason
       }')"
+
+  release_job_lock
+
+  # done 確定後に learn.sh を呼ぶ（lock 解放後に実行する）
+  if [ "${final_decision}" = "done" ] && should_write_knowledge "${job_name}" 2>/dev/null; then
+    local learn_args=(--job-name "${job_name}")
+    [ -n "${lesson}" ] && learn_args+=(--lesson "${lesson}")
+    "${BIN_DIR}/learn.sh" "${learn_args[@]}" || warn "learn.sh failed for job: ${job_name}"
+  fi
 
   printf 'applied manager decision %s for job %s round %03d\n' "${final_decision}" "${job_name}" "${current_round}"
 }
