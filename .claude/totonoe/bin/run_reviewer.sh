@@ -80,6 +80,17 @@ build_prompt_file() {
         printf '_This file is not present in the snapshot. Treat it as deleted or moved._\n\n'
       fi
     done
+    # 過去の未解決指摘の注入（knowledge 有効時のみ）
+    local past_findings=""
+    if should_write_knowledge "${job_name}" 2>/dev/null \
+       && past_findings=$("${BIN_DIR}/query_knowledge.sh" --type findings --limit 3 --max-chars 800 2>/dev/null); then
+      printf '## 過去の未解決指摘（参考情報）\n\n'
+      printf '%s\n\n' "${past_findings}"
+      printf '重要: 上記は参考情報にすぎません。今回のコードスナップショットのみに基づいて独立にレビューしてください。\n'
+      printf '過去の指摘が修正済みであっても改めて報告しないでください。\n'
+      printf '過去にない新しい問題を見逃さないことを優先してください。\n\n'
+    fi
+
     printf '## Output Rules\n\n'
     printf -- '- `severity` must be one of `critical`, `high`, `medium`, `low`\n'
     printf -- '- `overall_grade` must be one of `S`, `A`, `B`, `C`\n'

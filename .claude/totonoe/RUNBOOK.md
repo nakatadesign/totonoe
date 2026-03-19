@@ -167,6 +167,10 @@ cp .env.example .env
 .claude/totonoe/bin/query_knowledge.sh --type lessons --limit 5
 ```
 
+### Reviewer への自動注入
+
+knowledge が有効なジョブでは、`run_reviewer.sh` が過去の未解決指摘（`resolved = 0`）を Reviewer の各バッチプロンプトに自動注入します（最大 800 文字、直近 3 件）。注入テキストには「今回のスナップショットのみに基づいて独立にレビューする」旨のバイアス防止指示が含まれます。`lessons` は Reviewer には注入されません。
+
 ### Judge への自動注入
 
 knowledge が有効なジョブでは、`run_judge.sh` が過去の判定傾向を Judge プロンプトに自動注入します（最大 500 文字、直近 3 件）。注入テキストにはバイアス防止指示が含まれ、Judge は今回の指摘内容に基づいて独立に判断します。

@@ -121,15 +121,11 @@ FAKESCRIPT
           export PATH="${fake_bin}:${PATH}"
           (
             cd "${target}"
-
-            # 1. --with-knowledge で knowledge.db + state.json が正しく設定される
             .claude/totonoe/bin/init_job.sh --job-name write-test --goal-template feature_loop --with-knowledge
             test -f .claude/totonoe/knowledge.db
             test "$(jq -r '.knowledge_enabled' .claude/totonoe/runtime/write-test/state.json)" = "true"
             .claude/totonoe/bin/init_job.sh --job-name no-kn --goal-template feature_loop
             test "$(jq -r '.knowledge_enabled' .claude/totonoe/runtime/no-kn/state.json)" = "false"
-
-            # 2. reviewer → review_rounds + review_findings に書き込まれる
             printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
             .claude/totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .claude/totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp=".claude/totonoe/runtime/write-test/rounds/001"
@@ -139,21 +135,15 @@ FAKESCRIPT
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT overall_grade FROM review_rounds;')" = "A"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_findings;')" = "1"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT severity FROM review_findings;')" = "critical"
-
-            # 3. judge → verdicts に書き込まれる
             .claude/totonoe/bin/run_judge.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM verdicts;')" = "1"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT recommendation FROM verdicts;')" = "fix"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT engineer_type FROM verdicts;')" = "generic"
-
-            # 4. --force 再実行で重複しない
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds;')" = "1"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_findings;')" = "1"
             .claude/totonoe/bin/run_judge.sh --job-name write-test --force
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM verdicts;')" = "1"
-
-            # 5. グレード C は保存されない
             export FAKE_GRADE="C"
             jq '.status = "init" | .current_round = 0' .claude/totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .claude/totonoe/runtime/write-test/state.json
             printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
@@ -162,8 +152,6 @@ FAKESCRIPT
             mkdir -p "${rp2}/snapshot" && echo "d" > "${rp2}/snapshot/setup.sh"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds;')" = "1"
-
-            # 6. 初期蓄積フェーズではグレード B が保存される
             export FAKE_GRADE="B"
             jq '.status = "init" | .current_round = 0' .claude/totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .claude/totonoe/runtime/write-test/state.json
             printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
@@ -172,8 +160,6 @@ FAKESCRIPT
             mkdir -p "${rp3}/snapshot" && echo "d" > "${rp3}/snapshot/setup.sh"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "B";')" = "1"
-
-            # 7. 閾値以上ではグレード B が保存されない
             jq '.knowledge.quality_threshold_count = 1' .claude/totonoe/config.json > /tmp/_cfg.json && mv /tmp/_cfg.json .claude/totonoe/config.json
             jq '.status = "init" | .current_round = 0' .claude/totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .claude/totonoe/runtime/write-test/state.json
             printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
@@ -182,8 +168,6 @@ FAKESCRIPT
             mkdir -p "${rp4}/snapshot" && echo "d" > "${rp4}/snapshot/setup.sh"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "B";')" = "1"
-
-            # 8. findings=[] でも review_rounds は保存される
             jq '.knowledge.quality_threshold_count = 20' .claude/totonoe/config.json > /tmp/_cfg.json && mv /tmp/_cfg.json .claude/totonoe/config.json
             cat > "${fake_bin}/codex" <<'FAKESCRIPT2'
 #!/usr/bin/env bash
@@ -205,16 +189,12 @@ FAKESCRIPT2
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "S";')" -ge 1
             test "$(sqlite3 .claude/totonoe/knowledge.db "SELECT COUNT(*) FROM review_findings WHERE review_round_id = (SELECT id FROM review_rounds WHERE overall_grade = 'S' ORDER BY id DESC LIMIT 1);")" = "0"
-
-            # 9. knowledge 無効ジョブは reviewer/judge がエラーにならない
             printf 'summary\n' > .claude/totonoe/runtime/no-kn/summary.md
             .claude/totonoe/bin/record_claude_round.sh --job-name no-kn --summary-file .claude/totonoe/runtime/no-kn/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp_nk=".claude/totonoe/runtime/no-kn/rounds/001"
             mkdir -p "${rp_nk}/snapshot" && echo "d" > "${rp_nk}/snapshot/setup.sh"
             .claude/totonoe/bin/run_reviewer.sh --job-name no-kn
             .claude/totonoe/bin/run_judge.sh --job-name no-kn
-
-            # 10. --force 再実行で保存対象外に変わったら既存行が消える
             cat > "${fake_bin}/codex" <<'FAKESCRIPT3'
 #!/usr/bin/env bash
 schema_file=""
@@ -245,8 +225,6 @@ FAKESCRIPT3
             export FAKE_GRADE="C"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE round = 6;')" = "0"
-
-            # 11. threshold 不正値で warn + fallback
             jq '.knowledge.quality_threshold_count = "bad"' .claude/totonoe/config.json > /tmp/_cfg.json && mv /tmp/_cfg.json .claude/totonoe/config.json
             export FAKE_GRADE="A"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force 2>&1 | grep -q "不正です"
@@ -326,6 +304,64 @@ FAKESCRIPT
             ! grep -q "参考情報" .claude/totonoe/runtime/nokn/rounds/001/judge.prompt.md
           )
 
+      - name: Smoke test reviewer injection
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+          fake_bin="$(mktemp -d)"
+          cat > "${fake_bin}/codex" <<'FAKESCRIPT'
+#!/usr/bin/env bash
+schema_file=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
+done
+case "${schema_file}" in
+  *reviewer*) echo '{"summary":"test","overall_grade":"A","critical_count":1,"findings":[{"file":"a.ts","severity":"critical","title":"NULL","reason":"null check","suggested_fix":"fix"}]}' ;;
+  *judge*) echo '{"recommendation":"fix","reason":"critical","must_fix":["NULL"],"can_defer":[],"next_step":"fix","engineer_type":"generic","spot_check_required":false}' ;;
+esac
+FAKESCRIPT
+          chmod +x "${fake_bin}/codex"
+          export PATH="${fake_bin}:${PATH}"
+          (
+            cd "${target}"
+
+            # seed ジョブで findings を蓄積
+            .claude/totonoe/bin/init_job.sh --job-name seed --goal-template feature_loop --with-knowledge
+            printf 'summary\n' > .claude/totonoe/runtime/seed/summary.md
+            .claude/totonoe/bin/record_claude_round.sh --job-name seed --summary-file .claude/totonoe/runtime/seed/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .claude/totonoe/runtime/seed/rounds/001/snapshot && echo "d" > .claude/totonoe/runtime/seed/rounds/001/snapshot/setup.sh
+            .claude/totonoe/bin/run_reviewer.sh --job-name seed
+
+            # 別ジョブで reviewer 実行 → prompt に注入されるか
+            .claude/totonoe/bin/init_job.sh --job-name rv --goal-template feature_loop --with-knowledge
+            printf 'summary\n' > .claude/totonoe/runtime/rv/summary.md
+            .claude/totonoe/bin/record_claude_round.sh --job-name rv --summary-file .claude/totonoe/runtime/rv/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .claude/totonoe/runtime/rv/rounds/001/snapshot && echo "d" > .claude/totonoe/runtime/rv/rounds/001/snapshot/setup.sh
+            .claude/totonoe/bin/run_reviewer.sh --job-name rv
+            rpf=".claude/totonoe/runtime/rv/rounds/001/reviewer_batch_001.prompt.md"
+            grep -q "過去の未解決指摘" "${rpf}"
+            grep -q "参考情報にすぎません" "${rpf}"
+            grep -q "独立にレビュー" "${rpf}"
+            grep -q "見逃さない" "${rpf}"
+
+            # knowledge 無効ジョブでは注入なし
+            .claude/totonoe/bin/init_job.sh --job-name nokn --goal-template feature_loop
+            printf 'summary\n' > .claude/totonoe/runtime/nokn/summary.md
+            .claude/totonoe/bin/record_claude_round.sh --job-name nokn --summary-file .claude/totonoe/runtime/nokn/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .claude/totonoe/runtime/nokn/rounds/001/snapshot && echo "d" > .claude/totonoe/runtime/nokn/rounds/001/snapshot/setup.sh
+            .claude/totonoe/bin/run_reviewer.sh --job-name nokn
+            ! grep -q "過去の未解決指摘" .claude/totonoe/runtime/nokn/rounds/001/reviewer_batch_001.prompt.md
+
+            # resolved=1 の findings は注入されない
+            sqlite3 .claude/totonoe/knowledge.db "UPDATE review_findings SET resolved = 1;"
+            .claude/totonoe/bin/init_job.sh --job-name rv2 --goal-template feature_loop --with-knowledge
+            printf 'summary\n' > .claude/totonoe/runtime/rv2/summary.md
+            .claude/totonoe/bin/record_claude_round.sh --job-name rv2 --summary-file .claude/totonoe/runtime/rv2/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .claude/totonoe/runtime/rv2/rounds/001/snapshot && echo "d" > .claude/totonoe/runtime/rv2/rounds/001/snapshot/setup.sh
+            .claude/totonoe/bin/run_reviewer.sh --job-name rv2
+            ! grep -q "過去の未解決指摘" .claude/totonoe/runtime/rv2/rounds/001/reviewer_batch_001.prompt.md
+          )
+
       - name: Smoke test lessons and manager hook
         run: |
           target="$(mktemp -d)"
@@ -346,8 +382,6 @@ FAKESCRIPT
           export PATH="${fake_bin}:${PATH}"
           (
             cd "${target}"
-
-            # learn.sh 単体テスト
             .claude/totonoe/bin/init_job.sh --job-name lt --goal-template feature_loop --with-knowledge
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')" = "2"
             sqlite3 .claude/totonoe/knowledge.db ".tables" | grep -q "lessons"
@@ -367,8 +401,6 @@ FAKESCRIPT
             .claude/totonoe/bin/init_job.sh --job-name nokn --goal-template feature_loop
             .claude/totonoe/bin/learn.sh --job-name nokn --lesson "nope"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM lessons WHERE job_name = "nokn";')" = "0"
-
-            # apply --decision done --lesson E2E
             .claude/totonoe/bin/init_job.sh --job-name lt2 --goal-template feature_loop --with-knowledge --force
             printf 'summary\n' > .claude/totonoe/runtime/lt2/summary.md
             .claude/totonoe/bin/record_claude_round.sh --job-name lt2 --summary-file .claude/totonoe/runtime/lt2/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
@@ -379,8 +411,6 @@ FAKESCRIPT
             .claude/totonoe/bin/apply_manager_decision.sh --job-name lt2 --decision done --lesson "E2E教訓"
             test "$(jq -r '.status' .claude/totonoe/runtime/lt2/state.json)" = "done"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT lesson FROM lessons WHERE job_name = "lt2";')" = "E2E教訓"
-
-            # done guard → human 降格 → learn 呼ばれない
             cat > "${fake_bin}/codex" <<'FAKESCRIPT2'
 #!/usr/bin/env bash
 schema_file=""
@@ -403,12 +433,8 @@ FAKESCRIPT2
             .claude/totonoe/bin/apply_manager_decision.sh --job-name lt3 --decision done --lesson "nope"
             test "$(jq -r '.status' .claude/totonoe/runtime/lt3/state.json)" = "human"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM lessons WHERE job_name = "lt3";')" = "0"
-
-            # --lesson は --decision done 以外では拒否される
             if .claude/totonoe/bin/apply_manager_decision.sh --job-name lt3 --decision fix --lesson "bad" --force 2>/dev/null; then exit 1; fi
             if .claude/totonoe/bin/apply_manager_decision.sh --job-name lt3 --decision continue --lesson "bad" --force 2>/dev/null; then exit 1; fi
-
-            # query --type lessons
             .claude/totonoe/bin/query_knowledge.sh --type lessons | grep -q "E2E教訓"
             test "$(.claude/totonoe/bin/query_knowledge.sh --type lessons --limit 1 | grep -c '^\-')" = "1"
             .claude/totonoe/bin/query_knowledge.sh --type lessons --max-chars 10 | grep -q "truncated"
@@ -464,8 +490,6 @@ FAKESCRIPT2
             export TOTONOE_FORCE_MKDIR_LOCK=1
             .claude/totonoe/bin/init_job.sh --job-name locktest --goal-text "lock ci test"
             lock_dir=".claude/totonoe/runtime/locktest/.job.lock.d"
-
-            # 1. stale lock (dead PID) を作って次回取得で自動回収されることを確認
             mkdir -p "${lock_dir}"
             jq -nc '{pid: 99999999, hostname: "ci", created_at: "2025-01-01T00:00:00Z"}' > "${lock_dir}/owner.json"
             test -d "${lock_dir}"
@@ -479,8 +503,6 @@ FAKESCRIPT2
             status="$(.claude/totonoe/bin/status.sh --job-name locktest --json | jq -r '.status')"
             test "${status}" = "reviewing"
             test ! -d "${lock_dir}"
-
-            # 2. live PID の lock は奪わないことを確認
             mkdir -p "${lock_dir}"
             jq -nc --argjson pid "$$" '{pid: $pid, hostname: "ci", created_at: "2025-01-01T00:00:00Z"}' > "${lock_dir}/owner.json"
             if timeout 3 bash -c "
@@ -492,8 +514,6 @@ FAKESCRIPT2
               echo 'FAIL: live PID lock was stolen' >&2; exit 1
             fi
             rm -rf "${lock_dir}"
-
-            # 3. metadata なしの新しい lock dir (grace period 内) は回収しないことを確認
             mkdir -p "${lock_dir}"
             if timeout 3 bash -c "
               cd '${target}'
