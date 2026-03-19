@@ -274,6 +274,65 @@ FAKESCRIPT2
             echo "dummy" > "${rp_nk}/snapshot/setup.sh"
             .claude/totonoe/bin/run_reviewer.sh --job-name no-kn
             .claude/totonoe/bin/run_judge.sh --job-name no-kn
+
+            # 10. --force 再実行で保存対象外に変わったら既存行が消える
+            cat > "${fake_bin}/codex" <<'FAKESCRIPT3'
+#!/usr/bin/env bash
+schema_file=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
+done
+case "${schema_file}" in
+  *reviewer*)
+    cat <<JSON
+{"summary":"test","overall_grade":"${FAKE_GRADE:-A}","critical_count":0,"findings":[]}
+JSON
+    ;;
+  *judge*) echo '{"recommendation":"done","reason":"ok","must_fix":[],"can_defer":[],"next_step":"none","engineer_type":"generic","spot_check_required":false}' ;;
+esac
+FAKESCRIPT3
+            chmod +x "${fake_bin}/codex"
+            # grade B → threshold 変更 → --force 再実行で B 行が消える
+            export FAKE_GRADE="B"
+            jq '.status = "init" | .current_round = 0' .claude/totonoe/runtime/write-test/state.json > /tmp/_st.json
+            mv /tmp/_st.json .claude/totonoe/runtime/write-test/state.json
+            printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
+            .claude/totonoe/bin/record_claude_round.sh \
+              --job-name write-test \
+              --summary-file .claude/totonoe/runtime/write-test/summary.md \
+              --changed-file setup.sh \
+              --quality-analyze passed \
+              --quality-test skipped
+            rp6=".claude/totonoe/runtime/write-test/rounds/006"
+            mkdir -p "${rp6}/snapshot"
+            echo "dummy" > "${rp6}/snapshot/setup.sh"
+            .claude/totonoe/bin/run_reviewer.sh --job-name write-test
+            test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "B" AND round = 6;')" = "1"
+            jq '.knowledge.quality_threshold_count = 1' .claude/totonoe/config.json > /tmp/_cfg.json
+            mv /tmp/_cfg.json .claude/totonoe/config.json
+            .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force
+            test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "B" AND round = 6;')" = "0"
+
+            # grade C 再実行でも既存 A 行が消える
+            jq '.knowledge.quality_threshold_count = 20' .claude/totonoe/config.json > /tmp/_cfg.json
+            mv /tmp/_cfg.json .claude/totonoe/config.json
+            export FAKE_GRADE="A"
+            .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force
+            test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "A" AND round = 6;')" = "1"
+            export FAKE_GRADE="C"
+            .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force
+            test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE round = 6;')" = "0"
+
+            # 11. threshold 不正値で warn + fallback（クラッシュしない）
+            jq '.knowledge.quality_threshold_count = "bad"' .claude/totonoe/config.json > /tmp/_cfg.json
+            mv /tmp/_cfg.json .claude/totonoe/config.json
+            export FAKE_GRADE="A"
+            .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force 2>&1 | grep -q "不正です"
+            jq '.knowledge.quality_threshold_count = 0' .claude/totonoe/config.json > /tmp/_cfg.json
+            mv /tmp/_cfg.json .claude/totonoe/config.json
+            .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force 2>&1 | grep -q "不正です"
+            jq '.knowledge.quality_threshold_count = 20' .claude/totonoe/config.json > /tmp/_cfg.json
+            mv /tmp/_cfg.json .claude/totonoe/config.json
           )
 
       - name: Smoke test shadow status generation

@@ -450,14 +450,20 @@ read_reviewer_mode() {
 KNOWLEDGE_DB="${TOTONOE_DIR}/knowledge.db"
 
 # knowledge.quality_threshold_count を config.json から読む（デフォルト 20）
+# 不正値の場合は warn を出してデフォルトにフォールバックする
 read_knowledge_threshold() {
-  local config_path
+  local config_path val
   config_path="$(totonoe_config_path)"
   if [ -f "${config_path}" ]; then
-    jq -r '.knowledge.quality_threshold_count // 20' "${config_path}"
+    val="$(jq -r '.knowledge.quality_threshold_count // 20' "${config_path}")"
   else
-    printf '20\n'
+    val="20"
   fi
+  if ! [[ "${val}" =~ ^[0-9]+$ ]] || [ "${val}" -lt 1 ]; then
+    warn "knowledge.quality_threshold_count の値が不正です: '${val}'（デフォルト 20 を使用）"
+    val="20"
+  fi
+  printf '%s\n' "${val}"
 }
 
 # state.json の knowledge_enabled を確認する

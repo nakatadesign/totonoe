@@ -229,55 +229,68 @@ write_knowledge_reviewer() {
   local grade
   grade="$(jq -r '.overall_grade' "${aggregate_file}")"
 
+  # 保存対象かどうかを判定する
+  local should_insert=1
+
   # グレード C は常に保存しない
-  [ "${grade}" != "C" ] || return 0
+  if [ "${grade}" = "C" ]; then
+    should_insert=0
+  fi
 
   # 段階的品質フィルタ
-  local threshold current_count
-  threshold="$(read_knowledge_threshold)"
-  current_count="$(_kdb_exec "SELECT COUNT(*) FROM review_rounds;")"
+  if [ "${should_insert}" = "1" ]; then
+    local threshold current_count
+    threshold="$(read_knowledge_threshold)"
+    current_count="$(_kdb_exec "SELECT COUNT(*) FROM review_rounds;")"
 
-  if [ "${current_count}" -ge "${threshold}" ]; then
-    # 通常フェーズ: S/A のみ
-    case "${grade}" in
-      S|A) ;;
-      *) return 0 ;;
-    esac
+    if [ "${current_count}" -ge "${threshold}" ]; then
+      # 通常フェーズ: S/A のみ
+      case "${grade}" in
+        S|A) ;;
+        *) should_insert=0 ;;
+      esac
+    fi
+    # 初期蓄積フェーズ: S/A/B OK（C は上でフィルタ済み）
   fi
-  # 初期蓄積フェーズ: S/A/B OK（C は上でフィルタ済み）
 
-  # jq で全 SQL を生成する（\u0027 = シングルクォート）
-  local sql
-  sql="$(jq -r \
-    --arg jn "${job_name}" \
-    --argjson rn "${round}" \
-    '
-      def sq: gsub("\u0027"; "\u0027\u0027");
-      def qs: "\u0027" + (. | tostring | sq) + "\u0027";
+  if [ "${should_insert}" = "1" ]; then
+    # jq で DELETE + INSERT の SQL を生成する（\u0027 = シングルクォート）
+    local sql
+    sql="$(jq -r \
+      --arg jn "${job_name}" \
+      --argjson rn "${round}" \
+      '
+        def sq: gsub("\u0027"; "\u0027\u0027");
+        def qs: "\u0027" + (. | tostring | sq) + "\u0027";
 
-      "BEGIN;",
-      "DELETE FROM review_rounds WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + ";",
-      "INSERT INTO review_rounds (job_name, round, overall_grade, critical_count, summary) VALUES ("
-        + ($jn | qs) + ", "
-        + ($rn | tostring) + ", "
-        + (.overall_grade | qs) + ", "
-        + (.critical_count | tostring) + ", "
-        + (.summary | qs) + ");",
-      (.findings[]? |
-        "INSERT INTO review_findings (review_round_id, job_name, round, file, severity, title, reason, suggested_fix) VALUES ("
-          + "(SELECT id FROM review_rounds WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + "), "
+        "BEGIN;",
+        "DELETE FROM review_rounds WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + ";",
+        "INSERT INTO review_rounds (job_name, round, overall_grade, critical_count, summary) VALUES ("
           + ($jn | qs) + ", "
           + ($rn | tostring) + ", "
-          + (.file | qs) + ", "
-          + (.severity | qs) + ", "
-          + (.title | qs) + ", "
-          + (.reason | qs) + ", "
-          + (.suggested_fix | qs) + ");"
-      ),
-      "COMMIT;"
-    ' "${aggregate_file}")"
-
-  _kdb_exec "${sql}"
+          + (.overall_grade | qs) + ", "
+          + (.critical_count | tostring) + ", "
+          + (.summary | qs) + ");",
+        (.findings[]? |
+          "INSERT INTO review_findings (review_round_id, job_name, round, file, severity, title, reason, suggested_fix) VALUES ("
+            + "(SELECT id FROM review_rounds WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + "), "
+            + ($jn | qs) + ", "
+            + ($rn | tostring) + ", "
+            + (.file | qs) + ", "
+            + (.severity | qs) + ", "
+            + (.title | qs) + ", "
+            + (.reason | qs) + ", "
+            + (.suggested_fix | qs) + ");"
+        ),
+        "COMMIT;"
+      ' "${aggregate_file}")"
+    _kdb_exec "${sql}"
+  else
+    # 保存対象外: 既存行があれば削除する（--force 再実行で古い行が残らないようにする）
+    local q_jn
+    q_jn="$(_sql_quote "${job_name}")"
+    _kdb_exec "DELETE FROM review_rounds WHERE job_name = ${q_jn} AND round = ${round};"
+  fi
 }
 
 main() {
