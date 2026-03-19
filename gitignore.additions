@@ -1,6 +1,6 @@
-.claude/totonoe/runtime/
-.claude/totonoe/knowledge.db
-.claude/totonoe/knowledge.db-wal
-.claude/totonoe/knowledge.db-shm
+.totonoe/runtime/
+.totonoe/knowledge.db
+.totonoe/knowledge.db-wal
+.totonoe/knowledge.db-shm
 .claude/settings.local.json
 .claude/hooks/

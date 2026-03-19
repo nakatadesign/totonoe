@@ -9,8 +9,8 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/apply_manager_decision.sh --job-name <name> --record-spot-check [--force]
-  .claude/totonoe/bin/apply_manager_decision.sh --job-name <name> --decision <fix|continue|done|human> [--reason "<text>"] [--lesson "<text>"] [--from-judge <path>] [--force]
+  .totonoe/bin/apply_manager_decision.sh --job-name <name> --record-spot-check [--force]
+  .totonoe/bin/apply_manager_decision.sh --job-name <name> --decision <fix|continue|done|human> [--reason "<text>"] [--lesson "<text>"] [--from-judge <path>] [--force]
 EOF
 }
 

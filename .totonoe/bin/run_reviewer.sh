@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/run_reviewer.sh --job-name <name> [--force]
+  .totonoe/bin/run_reviewer.sh --job-name <name> [--force]
 EOF
 }
 

@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/render_loop_prompt.sh --job-name <name>
+  .totonoe/bin/render_loop_prompt.sh --job-name <name>
 EOF
 }
 
@@ -61,10 +61,10 @@ ${goal_text}
 $(printf '%s\n' "${state_json}" | jq '.')
 
 次の手順:
-1. \`.claude/totonoe/bin/status.sh --job-name ${job_name} --json\` で state を読む
+1. \`.totonoe/bin/status.sh --job-name ${job_name} --json\` で state を読む
 2. \`status=done\` なら完了報告して止まる
 3. \`status=human\` なら判断待ちとして止まる
-4. \`status=paused\` なら停止理由を報告して止まる。再開する場合は \`.claude/totonoe/bin/resume_job.sh --job-name ${job_name}\` を実行した上で、改めて \`render_loop_prompt.sh\` を実行する
+4. \`status=paused\` なら停止理由を報告して止まる。再開する場合は \`.totonoe/bin/resume_job.sh --job-name ${job_name}\` を実行した上で、改めて \`render_loop_prompt.sh\` を実行する
 5. \`status=init | fix_requested | continue_requested\` なら実装し、summary を保存して \`record_claude_round.sh\` を実行し、その後 \`run_reviewer.sh\` と \`run_judge.sh\` を実行する
 6. \`status=reviewing\` なら \`run_reviewer.sh --job-name ${job_name}\` から再開する
 7. \`status=judging\` なら \`run_judge.sh --job-name ${job_name}\` から再開する
@@ -72,20 +72,20 @@ $(printf '%s\n' "${state_json}" | jq '.')
 
 補足:
 - 現在の status は \`${current_status}\`
-- provider 状態も見たい場合は \`.claude/totonoe/bin/status.sh --job-name ${job_name} --provider-state\` を使う
-- ユーザーが \`totonoe stop\` と伝えたら、\`.claude/totonoe/bin/pause_job.sh --job-name ${job_name} --reason "user requested stop"\` で停止できる
+- provider 状態も見たい場合は \`.totonoe/bin/status.sh --job-name ${job_name} --provider-state\` を使う
+- ユーザーが \`totonoe stop\` と伝えたら、\`.totonoe/bin/pause_job.sh --job-name ${job_name} --reason "user requested stop"\` で停止できる
 $(if [ -n "${pause_reason}" ]; then printf '%s\n' "- paused reason: ${pause_reason}"; fi)
 $(if [ -n "${pause_previous_status}" ]; then printf '%s\n' "- paused previous_status: ${pause_previous_status}"; fi)
 
 使用コマンド:
-- \`.claude/totonoe/bin/status.sh --job-name ${job_name}\`
-- \`.claude/totonoe/bin/pause_job.sh --job-name ${job_name} --reason "<text>"\`
-- \`.claude/totonoe/bin/resume_job.sh --job-name ${job_name}\`
-- \`.claude/totonoe/bin/record_claude_round.sh --job-name ${job_name} ...\`
-- \`.claude/totonoe/bin/run_reviewer.sh --job-name ${job_name}\`
-- \`.claude/totonoe/bin/run_judge.sh --job-name ${job_name}\`
-- \`.claude/totonoe/bin/apply_manager_decision.sh --job-name ${job_name} --record-spot-check\`
-- \`.claude/totonoe/bin/apply_manager_decision.sh --job-name ${job_name} --decision <fix|continue|done|human>\`
+- \`.totonoe/bin/status.sh --job-name ${job_name}\`
+- \`.totonoe/bin/pause_job.sh --job-name ${job_name} --reason "<text>"\`
+- \`.totonoe/bin/resume_job.sh --job-name ${job_name}\`
+- \`.totonoe/bin/record_claude_round.sh --job-name ${job_name} ...\`
+- \`.totonoe/bin/run_reviewer.sh --job-name ${job_name}\`
+- \`.totonoe/bin/run_judge.sh --job-name ${job_name}\`
+- \`.totonoe/bin/apply_manager_decision.sh --job-name ${job_name} --record-spot-check\`
+- \`.totonoe/bin/apply_manager_decision.sh --job-name ${job_name} --decision <fix|continue|done|human>\`
 EOF
 }
 

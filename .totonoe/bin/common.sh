@@ -4,8 +4,21 @@ set -euo pipefail
 
 COMMON_DIR="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 TOTONOE_DIR="$(CDPATH='' cd -- "${COMMON_DIR}/.." && pwd -P)"
-CLAUDE_DIR="$(CDPATH='' cd -- "${TOTONOE_DIR}/.." && pwd -P)"
-REPO_ROOT="$(CDPATH='' cd -- "${CLAUDE_DIR}/.." && pwd -P)"
+
+# REPO_ROOT: .git を持つ最寄り祖先を探す。見つからなければ TOTONOE_DIR/.. にフォールバック
+_find_repo_root() {
+  local dir="${TOTONOE_DIR}"
+  while [ "${dir}" != "/" ]; do
+    if [ -d "${dir}/.git" ] || [ -f "${dir}/.git" ]; then
+      printf '%s\n' "${dir}"
+      return
+    fi
+    dir="$(CDPATH='' cd -- "${dir}/.." && pwd -P)"
+  done
+  # .git が見つからない場合（CI の tmpdir など）
+  CDPATH='' cd -- "${TOTONOE_DIR}/.." && pwd -P
+}
+REPO_ROOT="$(_find_repo_root)"
 RUNTIME_ROOT="${TOTONOE_DIR}/runtime"
 GOALS_DIR="${TOTONOE_DIR}/goals"
 SCHEMAS_DIR="${TOTONOE_DIR}/schemas"

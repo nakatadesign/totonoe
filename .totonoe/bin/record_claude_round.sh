@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/record_claude_round.sh \
+  .totonoe/bin/record_claude_round.sh \
     --job-name <name> \
     --summary-file <path> \
     --changed-file <file> [--changed-file <file> ...] \

@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/status.sh --job-name <name> [--json] [--provider-state]
+  .totonoe/bin/status.sh --job-name <name> [--json] [--provider-state]
 EOF
 }
 

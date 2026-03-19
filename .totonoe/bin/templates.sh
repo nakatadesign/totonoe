@@ -9,8 +9,8 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/templates.sh
-  .claude/totonoe/bin/templates.sh --show <template-name>
+  .totonoe/bin/templates.sh
+  .totonoe/bin/templates.sh --show <template-name>
 EOF
 }
 

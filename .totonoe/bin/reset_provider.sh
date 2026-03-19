@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/reset_provider.sh --job-name <name>
+  .totonoe/bin/reset_provider.sh --job-name <name>
 EOF
 }
 

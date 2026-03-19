@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/pause_job.sh --job-name <name> [--reason "<text>"]
+  .totonoe/bin/resume_job.sh --job-name <name>
 EOF
 }
 
@@ -17,16 +17,11 @@ main() {
   require_cmd jq
 
   local job_name=""
-  local reason="user requested stop"
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
       --job-name)
         job_name="${2:-}"
-        shift 2
-        ;;
-      --reason)
-        reason="${2:-}"
         shift 2
         ;;
       --help|-h)
@@ -45,39 +40,27 @@ main() {
   acquire_job_lock "${job_name}"
   trap release_job_lock EXIT
 
-  local state_file state_json status
+  local state_file state_json status previous_status
   state_file="$(state_path "${job_name}")"
   state_json="$(safe_read "${state_file}")"
   status="$(printf '%s\n' "${state_json}" | jq -r '.status')"
+  [ "${status}" = "paused" ] || die "resume_job.sh requires status paused"
 
-  case "${status}" in
+  previous_status="$(printf '%s\n' "${state_json}" | jq -r '.pause.previous_status // empty')"
+  case "${previous_status}" in
     init|fix_requested|continue_requested|reviewing|judging|manager_review) ;;
-    paused)
-      die "job is already paused: ${job_name}"
-      ;;
-    human)
-      die "job is already waiting for human judgment: ${job_name}"
-      ;;
-    done)
-      die "cannot pause completed job: ${job_name}"
-      ;;
     *)
-      die "cannot pause job from status: ${status}"
+      die "paused job is missing a resumable previous status"
       ;;
   esac
 
   printf '%s\n' "${state_json}" | jq \
     --arg now "$(now_utc)" \
-    --arg reason "${reason}" \
-    --arg previous_status "${status}" \
+    --arg resumed_status "${previous_status}" \
     '
       .updated_at = $now
-      | .status = "paused"
-      | .pause = {
-          paused_at: $now,
-          reason: $reason,
-          previous_status: $previous_status
-        }
+      | .status = $resumed_status
+      | .pause = null
     ' | safe_write "${state_file}"
 
   append_event_log_safe \
@@ -85,17 +68,15 @@ main() {
     "$(jq -nc \
       --arg ts "$(now_utc)" \
       --arg job "${job_name}" \
-      --arg previous_status "${status}" \
-      --arg reason "${reason}" \
+      --arg resumed_status "${previous_status}" \
       '{
         ts: $ts,
-        type: "job_paused",
+        type: "job_resumed",
         job: $job,
-        previous_status: $previous_status,
-        reason: $reason
+        resumed_status: $resumed_status
       }')"
 
-  printf 'paused job %s (previous status: %s)\n' "${job_name}" "${status}"
+  printf 'resumed job %s (status: %s)\n' "${job_name}" "${previous_status}"
 }
 
 main "$@"

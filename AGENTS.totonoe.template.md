@@ -1,7 +1,7 @@
 ## totonoe Reviewer
 
 このリポジトリでは `totonoe` の Reviewer として Codex CLI を使います。
-ランタイムパスは `.claude/totonoe/` です。
+ランタイムパスは `.totonoe/` です。
 
 ## Reviewer の人格
 

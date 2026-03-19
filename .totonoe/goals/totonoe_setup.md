@@ -2,7 +2,7 @@
 totonoe 基盤自体を導入または改善し、継続運用できる状態にする。
 
 対象:
-- `.claude/totonoe/`
+- `.totonoe/`
 - `.claude/agents/`
 - `CLAUDE.md`
 - `AGENTS.md`

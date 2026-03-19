@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/run_ai_exec.sh \
+  .totonoe/bin/run_ai_exec.sh \
     --role <reviewer|judge> \
     --prompt-file <path> \
     --schema-file <path> \

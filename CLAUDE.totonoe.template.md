@@ -1,6 +1,6 @@
 ## totonoe 運用
 
-このリポジトリでは `totonoe` を使って開発ループを回します。Claude Code がコントローラーとなり、シェルスクリプト経由で Codex CLI を呼び出して進行を制御します。ランタイムパスは `.claude/totonoe/` です。
+このリポジトリでは `totonoe` を使って開発ループを回します。Claude Code がコントローラーとなり、シェルスクリプト経由で Codex CLI を呼び出して進行を制御します。ランタイムパスは `.totonoe/` です。
 Gemini を使う場合の既定モデルは `gemini-2.5-flash-lite` です。`gemini-2.5-pro` は project / tier によって free tier で使えない場合があるため、fallback / shadow 用の軽量な既定値として扱います。
 
 ### 実行モードの前提
@@ -17,7 +17,7 @@ Gemini を使う場合の既定モデルは `gemini-2.5-flash-lite` です。`ge
 その後に続く `ジョブ名:`, `目的:`, `対象:`, `必須対応:`, `制約:`, `完了条件:`, `現在状態:`, `次の手順:` を優先して読み、現在の状態に応じて次の tick を実行する。
 
 ユーザー入力が `totonoe stop` で始まる場合、現在扱っている job を一時停止したい意図として扱う。
-job 名が分かっている場合は `.claude/totonoe/bin/pause_job.sh --job-name <current-job> --reason "<user reason or user requested stop>"` を実行し、それ以上のループ処理を進めずに停止理由と再開方法を報告する。
+job 名が分かっている場合は `.totonoe/bin/pause_job.sh --job-name <current-job> --reason "<user reason or user requested stop>"` を実行し、それ以上のループ処理を進めずに停止理由と再開方法を報告する。
 現在 job が特定できない場合は、推測で止めず、停止対象の job 名を短く確認する。
 
 ### 4つの役割
@@ -35,7 +35,7 @@ job 名が分かっている場合は `.claude/totonoe/bin/pause_job.sh --job-na
 2. `status=done` なら完了を報告して終了する
 3. `status=human` なら判断待ちを報告して停止する
 4. `status=paused` なら停止理由を報告して停止する
-   - 再開が必要なら `.claude/totonoe/bin/resume_job.sh --job-name <active-job>` を案内する
+   - 再開が必要なら `.totonoe/bin/resume_job.sh --job-name <active-job>` を案内する
    - resume 後に `render_loop_prompt.sh --job-name <active-job>` を再度実行した内容で続行する
 5. `status=init / fix_requested / continue_requested` の場合：
    - 実装または追加確認を行う

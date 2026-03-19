@@ -2,8 +2,8 @@
 
 **AIエージェントが実装・評価を分担する開発ループ設計**
 
-現在の安定版は **v2.0.0** です。v2 では SQLite ベースの project-local knowledge DB を追加し、Reviewer / Analyst / Manager が過去の知見を参照できるようになりました。
-詳細な変更点は [GitHub Releases の v2.0.0](https://github.com/nakatadesign/totonoe/releases/tag/v2.0.0) を参照してください。
+現在の公開安定版は **v2.0.0** です。`main` ブランチでは v3 系の開発を進めており、runtime core を `.claude/totonoe/` から `.totonoe/` へ移動して Claude Code の permission UX との衝突を解消しています。
+v2.0.0 の詳細は [GitHub Releases の v2.0.0](https://github.com/nakatadesign/totonoe/releases/tag/v2.0.0) を参照してください。
 
 開発作業を整える `totonoe` は、Claude Code（実装）と Codex CLI（評価）の役割を分離した Bash ベースの開発ループテンプレートです。
 Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fallback）と、評価を並走比較する shadow mode として利用できます。
@@ -91,18 +91,18 @@ cp .env.example .env
 
 totonoe のスクリプトはリポジトリルートの `.env` を自動で読み込みます。手動で `source .env` を実行する必要はありません。
 
-> **注意**: API キーなどの秘密情報は `.env` に書き、`.claude/totonoe/config.json` には入れないでください。`config.json` にはモード設定など公開可能な情報のみを置きます。`.env` は `.gitignore` で Git 管理から除外されています。
+> **注意**: API キーなどの秘密情報は `.env` に書き、`.totonoe/config.json` には入れないでください。`config.json` にはモード設定など公開可能な情報のみを置きます。`.env` は `.gitignore` で Git 管理から除外されています。
 
 **5. ジョブを初期化してループを開始する**
 
 ```bash
 # ジョブを作る
-.claude/totonoe/bin/init_job.sh \
+.totonoe/bin/init_job.sh \
   --job-name sample-feature \
   --goal-template feature_loop
 
 # ループ用プロンプトを生成して Claude Code に渡す
-.claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
+.totonoe/bin/render_loop_prompt.sh --job-name sample-feature
 ```
 
 ### Claude Code への最初の指示
@@ -156,7 +156,7 @@ totonoe start
 3. reviewer と judge を実行する
 ```
 
-詳しい運用手順は [`RUNBOOK.md`](./.claude/totonoe/RUNBOOK.md) にまとめています。
+詳しい運用手順は [`RUNBOOK.md`](./.totonoe/RUNBOOK.md) にまとめています。
 
 ### 途中で止めたいとき
 
@@ -166,14 +166,14 @@ totonoe start
 手元で明示的に止める場合:
 
 ```bash
-.claude/totonoe/bin/pause_job.sh --job-name sample-feature --reason "外出のため一時停止"
+.totonoe/bin/pause_job.sh --job-name sample-feature --reason "外出のため一時停止"
 ```
 
 再開するときは、先に paused 状態を戻してから、もう一度 loop 用プロンプトを生成します。
 
 ```bash
-.claude/totonoe/bin/resume_job.sh --job-name sample-feature
-.claude/totonoe/bin/render_loop_prompt.sh --job-name sample-feature
+.totonoe/bin/resume_job.sh --job-name sample-feature
+.totonoe/bin/render_loop_prompt.sh --job-name sample-feature
 ```
 
 ---
@@ -181,11 +181,11 @@ totonoe start
 ## リポジトリ構成
 
 ```
+.totonoe/           ← ランタイムスクリプト、スキーマ、ゴール、RUNBOOK
+  bin/              ← init / status / record / reviewer / judge / manager の各スクリプト
+  schemas/          ← Reviewer・Judge の出力スキーマ
+  goals/            ← ループのゴールテンプレート
 .claude/
-  totonoe/          ← ランタイムスクリプト、スキーマ、ゴール、RUNBOOK
-    bin/            ← init / status / record / reviewer / judge / manager の各スクリプト
-    schemas/        ← Reviewer・Judge の出力スキーマ
-    goals/          ← ループのゴールテンプレート
   agents/
     MANAGER.md              ← 最終決定者
     GENERIC-ENGINEER.md     ← 汎用エンジニア（デフォルト）
@@ -224,7 +224,7 @@ Analyst が `judge.json` に `engineer_type` を返した場合、Manager はそ
 Gemini は fallback / shadow 用の optional provider です。`GEMINI_API_KEY` がなくても Codex-only で通常運用できます。利用する場合は、秘密情報の管理を厳格に分離しています。
 
 - API キーは `.env` に書き、環境変数（`GEMINI_API_KEY`）として読み込みます。`config.json` や Git 管理されるファイルには入れません
-- `.claude/totonoe/config.json` には provider のモードなど公開可能な設定のみを置きます
+- `.totonoe/config.json` には provider のモードなど公開可能な設定のみを置きます
 - 既定モデルは `gemini-2.5-flash-lite` です。利用可能なトークン量が最も多いモデルをデフォルトとして採用しています。ご自身の project / tier に合わせて変更してください
 - Gemini は fallback または shadow の用途で使い、Codex（primary）を置き換えるものではありません
 - `GEMINI_API_KEY` が未設定の状態で Gemini が必要な処理に到達すると、スクリプトは明示的にエラーで止まります

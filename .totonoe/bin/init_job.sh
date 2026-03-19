@@ -9,7 +9,7 @@ source "${BIN_DIR}/common.sh"
 usage() {
   cat <<'EOF'
 Usage:
-  .claude/totonoe/bin/init_job.sh \
+  .totonoe/bin/init_job.sh \
     --job-name <name> \
     --goal-template <template> | --goal-file <path> | --goal-text "<text>" \
     [--max-rounds <n>] \
