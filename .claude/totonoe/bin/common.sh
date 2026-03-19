@@ -445,6 +445,51 @@ read_reviewer_mode() {
 }
 
 
+# --- knowledge DB ヘルパー ---
+
+KNOWLEDGE_DB="${TOTONOE_DIR}/knowledge.db"
+
+# knowledge.quality_threshold_count を config.json から読む（デフォルト 20）
+read_knowledge_threshold() {
+  local config_path
+  config_path="$(totonoe_config_path)"
+  if [ -f "${config_path}" ]; then
+    jq -r '.knowledge.quality_threshold_count // 20' "${config_path}"
+  else
+    printf '20\n'
+  fi
+}
+
+# state.json の knowledge_enabled を確認する
+is_knowledge_enabled() {
+  local job_name="$1"
+  local sf
+  sf="$(state_path "${job_name}")"
+  [ -f "${sf}" ] || return 1
+  local enabled
+  enabled="$(jq -r '.knowledge_enabled // false' "${sf}")"
+  [ "${enabled}" = "true" ]
+}
+
+# knowledge.db が存在し knowledge_enabled な場合のみ true を返す
+should_write_knowledge() {
+  local job_name="$1"
+  is_knowledge_enabled "${job_name}" || return 1
+  [ -f "${KNOWLEDGE_DB}" ] || return 1
+}
+
+# SQL 文字列リテラルをエスケープする（シングルクォートを二重化）
+_sql_quote() {
+  printf "'%s'" "${1//\'/\'\'}"
+}
+
+# knowledge.db に対して SQL を実行する（foreign_keys = ON）
+_kdb_exec() {
+  sqlite3 "${KNOWLEDGE_DB}" "PRAGMA foreign_keys = ON; $1"
+}
+
+# --- runner lock ---
+
 RUNNER_LOCK_MODE=""
 RUNNER_LOCK_FD=""
 RUNNER_LOCK_DIR=""

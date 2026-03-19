@@ -4,5 +4,8 @@
   },
   "reviewer": {
     "mode": "fallback"
+  },
+  "knowledge": {
+    "quality_threshold_count": 20
   }
 }

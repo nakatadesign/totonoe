@@ -13,6 +13,7 @@ Usage:
     --job-name <name> \
     --goal-template <template> | --goal-file <path> | --goal-text "<text>" \
     [--max-rounds <n>] \
+    [--with-knowledge] \
     [--force]
 EOF
 }
@@ -26,6 +27,7 @@ main() {
   local goal_file=""
   local goal_text=""
   local max_rounds="8"
+  local with_knowledge="0"
   local force="0"
 
   while [ "$#" -gt 0 ]; do
@@ -49,6 +51,10 @@ main() {
       --max-rounds)
         max_rounds="${2:-}"
         shift 2
+        ;;
+      --with-knowledge)
+        with_knowledge="1"
+        shift
         ;;
       --force)
         force="1"
@@ -102,11 +108,18 @@ main() {
 
   default_provider_state_json | write_provider_state "${job_name}"
 
+  local knowledge_enabled="false"
+  if [ "${with_knowledge}" = "1" ]; then
+    "${BIN_DIR}/init_knowledge.sh"
+    knowledge_enabled="true"
+  fi
+
   jq -n \
     --arg job_name "${job_name}" \
     --arg repo_root "${REPO_ROOT}" \
     --arg now "$(now_utc)" \
     --argjson max_rounds "${max_rounds}" \
+    --argjson knowledge_enabled "${knowledge_enabled}" \
     '{
       job_name: $job_name,
       repo_root: $repo_root,
@@ -119,7 +132,8 @@ main() {
       last_decision: null,
       last_reviewer_grade: null,
       last_critical_count: 0,
-      manager_spot_check: null
+      manager_spot_check: null,
+      knowledge_enabled: $knowledge_enabled
     }' | safe_write "$(state_path "${job_name}")"
 
   jq -nc \

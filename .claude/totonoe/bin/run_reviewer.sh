@@ -219,6 +219,67 @@ build_shadow_summary() {
     ' | safe_write "${round_path}/reviewer_shadow_summary.json"
 }
 
+write_knowledge_reviewer() {
+  local job_name="$1"
+  local round="$2"
+  local aggregate_file="$3"
+
+  should_write_knowledge "${job_name}" || return 0
+
+  local grade
+  grade="$(jq -r '.overall_grade' "${aggregate_file}")"
+
+  # グレード C は常に保存しない
+  [ "${grade}" != "C" ] || return 0
+
+  # 段階的品質フィルタ
+  local threshold current_count
+  threshold="$(read_knowledge_threshold)"
+  current_count="$(_kdb_exec "SELECT COUNT(*) FROM review_rounds;")"
+
+  if [ "${current_count}" -ge "${threshold}" ]; then
+    # 通常フェーズ: S/A のみ
+    case "${grade}" in
+      S|A) ;;
+      *) return 0 ;;
+    esac
+  fi
+  # 初期蓄積フェーズ: S/A/B OK（C は上でフィルタ済み）
+
+  # jq で全 SQL を生成する（\u0027 = シングルクォート）
+  local sql
+  sql="$(jq -r \
+    --arg jn "${job_name}" \
+    --argjson rn "${round}" \
+    '
+      def sq: gsub("\u0027"; "\u0027\u0027");
+      def qs: "\u0027" + (. | tostring | sq) + "\u0027";
+
+      "BEGIN;",
+      "DELETE FROM review_rounds WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + ";",
+      "INSERT INTO review_rounds (job_name, round, overall_grade, critical_count, summary) VALUES ("
+        + ($jn | qs) + ", "
+        + ($rn | tostring) + ", "
+        + (.overall_grade | qs) + ", "
+        + (.critical_count | tostring) + ", "
+        + (.summary | qs) + ");",
+      (.findings[]? |
+        "INSERT INTO review_findings (review_round_id, job_name, round, file, severity, title, reason, suggested_fix) VALUES ("
+          + "(SELECT id FROM review_rounds WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + "), "
+          + ($jn | qs) + ", "
+          + ($rn | tostring) + ", "
+          + (.file | qs) + ", "
+          + (.severity | qs) + ", "
+          + (.title | qs) + ", "
+          + (.reason | qs) + ", "
+          + (.suggested_fix | qs) + ");"
+      ),
+      "COMMIT;"
+    ' "${aggregate_file}")"
+
+  _kdb_exec "${sql}"
+}
+
 main() {
   require_cmd jq
 
@@ -394,6 +455,9 @@ main() {
   aggregate_grade="$(printf '%s\n' "${aggregate_json}" | jq -r '.overall_grade')"
   aggregate_critical="$(printf '%s\n' "${aggregate_json}" | jq -r '.critical_count')"
   batch_count="$(find "${round_path}" -maxdepth 1 -type f -name 'reviewer_batch_*.json' ! -name '*_shadow.json' | wc -l | tr -d ' ')"
+
+  # knowledge DB への書き込み（state 遷移前に実行する）
+  write_knowledge_reviewer "${job_name}" "${target_round}" "${round_path}/reviewer_aggregate.json"
 
   acquire_job_lock "${job_name}"
 

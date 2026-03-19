@@ -76,6 +76,36 @@ build_prompt_file() {
   } | safe_write "${prompt_file}"
 }
 
+write_knowledge_verdict() {
+  local job_name="$1"
+  local round="$2"
+  local judge_file="$3"
+
+  should_write_knowledge "${job_name}" || return 0
+
+  # jq で SQL を生成する（\u0027 = シングルクォート）
+  local sql
+  sql="$(jq -r \
+    --arg jn "${job_name}" \
+    --argjson rn "${round}" \
+    '
+      def sq: gsub("\u0027"; "\u0027\u0027");
+      def qs: "\u0027" + (. | tostring | sq) + "\u0027";
+
+      "BEGIN;",
+      "DELETE FROM verdicts WHERE job_name = " + ($jn | qs) + " AND round = " + ($rn | tostring) + ";",
+      "INSERT INTO verdicts (job_name, round, recommendation, engineer_type, reason) VALUES ("
+        + ($jn | qs) + ", "
+        + ($rn | tostring) + ", "
+        + (.recommendation | qs) + ", "
+        + ((.engineer_type // "generic") | qs) + ", "
+        + (.reason | qs) + ");",
+      "COMMIT;"
+    ' "${judge_file}")"
+
+  _kdb_exec "${sql}"
+}
+
 main() {
   require_cmd jq
 
@@ -155,6 +185,9 @@ main() {
 
   local recommendation
   recommendation="$(safe_read "${round_path}/judge.json" | jq -r '.recommendation')"
+
+  # knowledge DB への書き込み（state 遷移前に実行する）
+  write_knowledge_verdict "${job_name}" "${target_round}" "${round_path}/judge.json"
 
   acquire_job_lock "${job_name}"
 
