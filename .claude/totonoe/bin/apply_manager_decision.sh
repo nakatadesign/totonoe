@@ -119,6 +119,9 @@ main() {
         ;;
     esac
   fi
+  if [ -n "${lesson}" ] && [ "${decision}" != "done" ]; then
+    die "--lesson は --decision done のときのみ使用できます"
+  fi
 
   acquire_job_lock "${job_name}"
   trap release_job_lock EXIT
