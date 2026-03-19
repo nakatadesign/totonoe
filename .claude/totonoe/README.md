@@ -1,6 +1,6 @@
-# totonoe ランタイムコア
+# totonoe ランタイムコア (v2.0.0)
 
-`totonoe` の実行コアです。Claude Code と Codex CLI を組み合わせて、Manager / Engineer / Reviewer / Analyst の 4 役で進める totonoe の基本構成です。
+`totonoe` の実行コアです。Claude Code と Codex CLI を組み合わせて、Manager / Engineer / Reviewer / Analyst の 4 役で進める totonoe の基本構成です。knowledge DB によるプロジェクト内学習機能を含みます。
 runtime path は `.claude/totonoe/` です。
 
 ## 主要ファイル

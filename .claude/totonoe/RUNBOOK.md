@@ -1,5 +1,7 @@
 # RUNBOOK
 
+> この RUNBOOK は totonoe v2 系ランタイムを前提としています。
+
 ## 前提条件
 
 この RUNBOOK は `setup.sh` が実行済みの環境を前提とします。未実行の場合、`bin/` 以下のスクリプトが存在せず Step 1 でエラーになります。

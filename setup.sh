@@ -128,8 +128,14 @@ main() {
     append_gitignore_line "${target_repo}/.gitignore" "${gitignore_line}"
   done < "${GITIGNORE_ADDITIONS}"
 
+  local totonoe_version=""
+  if [ -f "${SOURCE_CLAUDE_DIR}/totonoe/VERSION" ]; then
+    totonoe_version="$(cat "${SOURCE_CLAUDE_DIR}/totonoe/VERSION" | tr -d '[:space:]')"
+  fi
+
   cat <<EOF
 setup complete for: ${target_repo}
+totonoe version: ${totonoe_version:-unknown}
 
 next steps:
 - Merge ${target_repo}/CLAUDE.totonoe.template.md into your CLAUDE.md
