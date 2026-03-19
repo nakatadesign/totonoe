@@ -53,9 +53,17 @@ _query_findings() {
     where="${where} AND job_name = ${q_jn}"
   fi
 
-  local result
-  result="$(_kdb_exec "
-    SELECT severity, file, title, reason, job_name, round
+  # JSON 行で返し、jq で整形する（フィールドに | が入っても壊れない）
+  local json_rows
+  json_rows="$(_kdb_exec "
+    SELECT json_object(
+      'severity', severity,
+      'file', file,
+      'title', title,
+      'reason', reason,
+      'job_name', job_name,
+      'round', round
+    )
     FROM review_findings
     WHERE ${where}
     ORDER BY
@@ -69,14 +77,10 @@ _query_findings() {
     LIMIT ${limit};
   ")"
 
-  [ -n "${result}" ] || return 1
+  [ -n "${json_rows}" ] || return 1
 
-  local output=""
-  while IFS='|' read -r sev file title reason jn rnd; do
-    output="${output}- [${sev}] ${file}: ${title} — ${reason} (job: ${jn}, round: ${rnd})"$'\n'
-  done <<< "${result}"
-
-  printf '%s' "${output}"
+  printf '%s\n' "${json_rows}" | jq -r \
+    '"- [\(.severity)] \(.file): \(.title) — \(.reason) (job: \(.job_name), round: \(.round))"'
 }
 
 # --- verdicts クエリ ---
@@ -91,23 +95,25 @@ _query_verdicts() {
     where="engineer_type = ${q_et}"
   fi
 
-  local result
-  result="$(_kdb_exec "
-    SELECT recommendation, engineer_type, reason, job_name, round
+  local json_rows
+  json_rows="$(_kdb_exec "
+    SELECT json_object(
+      'recommendation', recommendation,
+      'engineer_type', engineer_type,
+      'reason', reason,
+      'job_name', job_name,
+      'round', round
+    )
     FROM verdicts
     WHERE ${where}
     ORDER BY created_at DESC
     LIMIT ${limit};
   ")"
 
-  [ -n "${result}" ] || return 1
+  [ -n "${json_rows}" ] || return 1
 
-  local output=""
-  while IFS='|' read -r rec etype reason jn rnd; do
-    output="${output}- ${rec} (${etype}): ${reason} (job: ${jn}, round: ${rnd})"$'\n'
-  done <<< "${result}"
-
-  printf '%s' "${output}"
+  printf '%s\n' "${json_rows}" | jq -r \
+    '"- \(.recommendation) (\(.engineer_type)): \(.reason) (job: \(.job_name), round: \(.round))"'
 }
 
 # --- summary クエリ ---
@@ -196,6 +202,14 @@ main() {
   done
 
   [ -n "${query_type}" ] || die "--type は必須です（findings / verdicts / summary）"
+
+  # 引数検証
+  [[ "${limit}" =~ ^[0-9]+$ ]] && [ "${limit}" -gt 0 ] \
+    || die "--limit は正の整数を指定してください: '${limit}'"
+  if [ -n "${max_chars}" ]; then
+    [[ "${max_chars}" =~ ^[0-9]+$ ]] && [ "${max_chars}" -gt 0 ] \
+      || die "--max-chars は正の整数を指定してください: '${max_chars}'"
+  fi
 
   # knowledge.db が存在しなければ exit 2 で静かに終了する
   if [ ! -f "${KNOWLEDGE_DB}" ]; then

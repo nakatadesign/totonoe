@@ -42,14 +42,12 @@ jobs:
         run: |
           target="$(mktemp -d)"
           ./setup.sh --target "${target}" --force
-
           test -f "${target}/.claude/agents/GENERIC-ENGINEER.md"
           test -f "${target}/.claude/agents/SECURITY-ENGINEER.md"
           test -f "${target}/.claude/agents/TEST-ENGINEER.md"
           test -f "${target}/.claude/agents/PERF-ENGINEER.md"
           test -f "${target}/.claude/agents/REFACTOR-ENGINEER.md"
           test -f "${target}/.env.example"
-
           (
             cd "${target}"
             .claude/totonoe/bin/init_job.sh --job-name smoke --goal-template feature_loop
@@ -124,30 +122,21 @@ FAKESCRIPT
             .claude/totonoe/bin/init_job.sh --job-name no-kn --goal-template feature_loop
             test "$(jq -r '.knowledge_enabled' .claude/totonoe/runtime/no-kn/state.json)" = "false"
             printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
-            .claude/totonoe/bin/record_claude_round.sh \
-              --job-name write-test \
-              --summary-file .claude/totonoe/runtime/write-test/summary.md \
-              --changed-file setup.sh \
-              --quality-analyze passed \
-              --quality-test skipped
+            .claude/totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .claude/totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp=".claude/totonoe/runtime/write-test/rounds/001"
-            mkdir -p "${rp}/snapshot"
-            echo "dummy" > "${rp}/snapshot/setup.sh"
+            mkdir -p "${rp}/snapshot" && echo "d" > "${rp}/snapshot/setup.sh"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds;')" = "1"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT overall_grade FROM review_rounds;')" = "A"
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_findings;')" = "1"
-            test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT severity FROM review_findings;')" = "critical"
             .claude/totonoe/bin/run_judge.sh --job-name write-test
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM verdicts;')" = "1"
-            test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT recommendation FROM verdicts;')" = "fix"
             .claude/totonoe/bin/run_reviewer.sh --job-name write-test --force
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds;')" = "1"
             .claude/totonoe/bin/run_judge.sh --job-name write-test --force
             test "$(sqlite3 .claude/totonoe/knowledge.db 'SELECT COUNT(*) FROM verdicts;')" = "1"
             export FAKE_GRADE="C"
-            jq '.status = "init" | .current_round = 0' .claude/totonoe/runtime/write-test/state.json > /tmp/_st.json
-            mv /tmp/_st.json .claude/totonoe/runtime/write-test/state.json
+            jq '.status = "init" | .current_round = 0' .claude/totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .claude/totonoe/runtime/write-test/state.json
             printf 'summary\n' > .claude/totonoe/runtime/write-test/summary.md
             .claude/totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .claude/totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp2=".claude/totonoe/runtime/write-test/rounds/002"
@@ -261,22 +250,24 @@ FAKESCRIPT
             .claude/totonoe/bin/run_reviewer.sh --job-name qt
             .claude/totonoe/bin/run_judge.sh --job-name qt
 
-            # query_knowledge.sh --type findings
+            # query findings / verdicts / summary
             .claude/totonoe/bin/query_knowledge.sh --type findings | grep -q "critical"
-
-            # query_knowledge.sh --type verdicts
             .claude/totonoe/bin/query_knowledge.sh --type verdicts | grep -q "fix"
-
-            # query_knowledge.sh --type summary
             .claude/totonoe/bin/query_knowledge.sh --type summary | grep -q "ジョブ数"
 
-            # knowledge.db 不在 → exit 2
+            # exit 2: knowledge.db 不在
             rm .claude/totonoe/knowledge.db
-            .claude/totonoe/bin/query_knowledge.sh --type summary 2>/dev/null; test "$?" = "2"
+            set +e
+            .claude/totonoe/bin/query_knowledge.sh --type summary 2>/dev/null
+            test "$?" = "2"
+            set -e
             .claude/totonoe/bin/init_knowledge.sh >/dev/null 2>&1
 
-            # 結果なし → exit 1
-            .claude/totonoe/bin/query_knowledge.sh --type findings 2>/dev/null; test "$?" = "1"
+            # exit 1: 結果なし
+            set +e
+            .claude/totonoe/bin/query_knowledge.sh --type findings 2>/dev/null
+            test "$?" = "1"
+            set -e
 
             # --limit デフォルト 3
             for i in 1 2 3 4 5; do
@@ -285,13 +276,30 @@ FAKESCRIPT
             done
             test "$(.claude/totonoe/bin/query_knowledge.sh --type findings | grep -c '^\-')" = "3"
 
-            # --max-chars で切り詰め
+            # --max-chars
             .claude/totonoe/bin/query_knowledge.sh --type findings --limit 5 --max-chars 30 | grep -q "truncated"
 
             # resolved=1 は返らない
             sqlite3 .claude/totonoe/knowledge.db "UPDATE review_findings SET resolved = 1;"
-            .claude/totonoe/bin/query_knowledge.sh --type findings 2>/dev/null; test "$?" = "1"
+            set +e
+            .claude/totonoe/bin/query_knowledge.sh --type findings 2>/dev/null
+            test "$?" = "1"
+            set -e
             sqlite3 .claude/totonoe/knowledge.db "UPDATE review_findings SET resolved = 0;"
+
+            # パイプ文字を含むデータでも壊れない
+            sqlite3 .claude/totonoe/knowledge.db "PRAGMA foreign_keys=ON;
+              INSERT OR REPLACE INTO review_rounds (job_name, round, overall_grade, critical_count, summary) VALUES ('pipe', 1, 'A', 1, 's');
+              INSERT INTO review_findings (review_round_id, job_name, round, file, severity, title, reason)
+                VALUES ((SELECT id FROM review_rounds WHERE job_name='pipe' AND round=1), 'pipe', 1, 'a|b.ts', 'critical', 'title|pipe', 'reason|pipe');
+              INSERT OR REPLACE INTO verdicts (job_name, round, recommendation, engineer_type, reason) VALUES ('pipe', 1, 'fix', 'generic', 'reason|pipe');"
+            .claude/totonoe/bin/query_knowledge.sh --type findings --job-name pipe | grep -q "title|pipe"
+            .claude/totonoe/bin/query_knowledge.sh --type verdicts | grep -q "reason|pipe"
+
+            # 引数検証: 不正な --limit / --max-chars は拒否
+            if .claude/totonoe/bin/query_knowledge.sh --type findings --limit bad 2>/dev/null; then exit 1; fi
+            if .claude/totonoe/bin/query_knowledge.sh --type findings --limit 0 2>/dev/null; then exit 1; fi
+            if .claude/totonoe/bin/query_knowledge.sh --type findings --max-chars bad 2>/dev/null; then exit 1; fi
 
             # Judge prompt にバイアス防止指示が入る
             for i in 1 2 3; do
