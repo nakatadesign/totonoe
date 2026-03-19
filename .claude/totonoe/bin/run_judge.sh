@@ -66,6 +66,16 @@ build_prompt_file() {
     printf '```json\n%s\n```\n\n' "${summary_json}"
     printf '## Reviewer Aggregate\n\n'
     printf '```json\n%s\n```\n\n' "${aggregate_json}"
+    # 過去判定の注入（knowledge 有効時のみ）
+    local past_verdicts=""
+    if should_write_knowledge "${job_name}" 2>/dev/null \
+       && past_verdicts=$("${BIN_DIR}/query_knowledge.sh" --type verdicts --limit 3 --max-chars 500 2>/dev/null); then
+      printf '## 過去の判定傾向（参考情報）\n\n'
+      printf '%s\n\n' "${past_verdicts}"
+      printf '重要: 上記は参考情報です。今回の reviewer_aggregate.json と claude_summary.json の内容に基づいて独立に判断してください。\n'
+      printf '過去の recommendation や engineer_type に引きずられず、今回の指摘内容から判定してください。\n\n'
+    fi
+
     printf '## Output Rules\n\n'
     printf -- '- `recommendation` must be one of `fix`, `continue`, `done`, `human`\n'
     printf -- '- `engineer_type` is required. Must be one of `security`, `test`, `performance`, `refactor`, `generic`\n'

@@ -122,7 +122,41 @@ cp .env.example .env
 3. `MANAGER.md` の dispatch テーブルに行を追加する
 4. この RUNBOOK の表も更新する
 
-## 6. provider 状態を手動で戻す
+## 6. ナレッジDB（オプション）
+
+### 有効化
+
+ジョブ初期化時に `--with-knowledge` を指定すると、knowledge.db が作成され、Reviewer / Judge の結果が自動的に蓄積されます。
+
+```bash
+.claude/totonoe/bin/init_job.sh \
+  --job-name sample-feature \
+  --goal-template feature_loop \
+  --with-knowledge
+```
+
+### 過去の知見を確認する
+
+```bash
+# 全体サマリー
+.claude/totonoe/bin/query_knowledge.sh --type summary
+
+# 未解決の過去指摘（severity 別）
+.claude/totonoe/bin/query_knowledge.sh --type findings --severity critical --limit 10
+
+# 過去の Judge 判定傾向
+.claude/totonoe/bin/query_knowledge.sh --type verdicts --engineer-type security --limit 5
+```
+
+### Judge への自動注入
+
+knowledge が有効なジョブでは、`run_judge.sh` が過去の判定傾向を Judge プロンプトに自動注入します（最大 500 文字、直近 3 件）。注入テキストにはバイアス防止指示が含まれ、Judge は今回の指摘内容に基づいて独立に判断します。
+
+### 無効化
+
+`--with-knowledge` を指定しなければ、knowledge.db は作成されません。既存の knowledge.db を無効にしたい場合は、ファイルを削除またはリネームしてください。ループの動作には影響しません。
+
+## 7. provider 状態を手動で戻す
 
 ```bash
 .claude/totonoe/bin/reset_provider.sh --job-name sample-feature
@@ -131,7 +165,7 @@ cp .env.example .env
 `Codex` 側の制限が解消したあと、cooldown を即解除したいときに使う。
 このコマンドは `cooldown_until` だけでなく `codex_consecutive_failures` もリセットする。
 
-## 7. よく見るファイル
+## 8. よく見るファイル
 
 - `runtime/<job>/state.json`
 - `runtime/<job>/provider_state.json`
@@ -147,7 +181,7 @@ cp .env.example .env
 jq 'select(.type == "ai_exec")' .claude/totonoe/runtime/sample-feature/events.jsonl
 ```
 
-## 8. 注意点
+## 9. 注意点
 
 - `jq >= 1.6` と `codex` が必要
 - `Gemini`（fallback / shadow）を使うには `curl` と `GEMINI_API_KEY` が必要（`.env` で設定）
