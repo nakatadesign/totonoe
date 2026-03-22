@@ -98,25 +98,25 @@ jobs:
           target="$(mktemp -d)"
           ./setup.sh --target "${target}" --force
           fake_bin="$(mktemp -d)"
-          cat > "${fake_bin}/codex" <<'FAKESCRIPT'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*)
-    cat <<JSON
-{"summary":"CI test","overall_grade":"${FAKE_GRADE:-A}","critical_count":1,"findings":[{"file":"src/app.ts","severity":"critical","title":"テスト指摘","reason":"テスト理由","suggested_fix":"修正案"}]}
-JSON
-    ;;
-  *judge*)
-    cat <<JSON
-{"recommendation":"fix","reason":"修正必要","must_fix":["テスト指摘"],"can_defer":[],"next_step":"修正する","engineer_type":"generic","spot_check_required":false}
-JSON
-    ;;
-esac
-FAKESCRIPT
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'schema_file=""'
+            echo 'while [ "$#" -gt 0 ]; do'
+            echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+            echo 'done'
+            echo 'case "${schema_file}" in'
+            echo '  *reviewer*)'
+            echo '    cat <<JSON'
+            echo '{"summary":"CI test","overall_grade":"${FAKE_GRADE:-A}","critical_count":1,"findings":[{"file":"src/app.ts","severity":"critical","title":"テスト指摘","reason":"テスト理由","suggested_fix":"修正案"}]}'
+            echo 'JSON'
+            echo '    ;;'
+            echo '  *judge*)'
+            echo '    cat <<JSON'
+            echo '{"recommendation":"fix","reason":"修正必要","must_fix":["テスト指摘"],"can_defer":[],"next_step":"修正する","engineer_type":"generic","spot_check_required":false}'
+            echo 'JSON'
+            echo '    ;;'
+            echo 'esac'
+          } > "${fake_bin}/codex"
           chmod +x "${fake_bin}/codex"
           export PATH="${fake_bin}:${PATH}"
           (
@@ -169,17 +169,17 @@ FAKESCRIPT
             .totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "B";')" = "1"
             jq '.knowledge.quality_threshold_count = 20' .totonoe/config.json > /tmp/_cfg.json && mv /tmp/_cfg.json .totonoe/config.json
-            cat > "${fake_bin}/codex" <<'FAKESCRIPT2'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*) echo '{"summary":"完璧","overall_grade":"S","critical_count":0,"findings":[]}' ;;
-  *judge*) echo '{"recommendation":"done","reason":"完了","must_fix":[],"can_defer":[],"next_step":"なし","engineer_type":"generic","spot_check_required":false}' ;;
-esac
-FAKESCRIPT2
+            {
+              echo '#!/usr/bin/env bash'
+              echo 'schema_file=""'
+              echo 'while [ "$#" -gt 0 ]; do'
+              echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+              echo 'done'
+              echo 'case "${schema_file}" in'
+              echo '  *reviewer*) echo '"'"'{"summary":"完璧","overall_grade":"S","critical_count":0,"findings":[]}'"'"' ;;'
+              echo '  *judge*) echo '"'"'{"recommendation":"done","reason":"完了","must_fix":[],"can_defer":[],"next_step":"なし","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+              echo 'esac'
+            } > "${fake_bin}/codex"
             chmod +x "${fake_bin}/codex"
             jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
             printf 'summary\n' > .totonoe/runtime/write-test/summary.md
@@ -195,17 +195,17 @@ FAKESCRIPT2
             mkdir -p "${rp_nk}/snapshot" && echo "d" > "${rp_nk}/snapshot/setup.sh"
             .totonoe/bin/run_reviewer.sh --job-name no-kn
             .totonoe/bin/run_judge.sh --job-name no-kn
-            cat > "${fake_bin}/codex" <<'FAKESCRIPT3'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*) printf '{"summary":"t","overall_grade":"%s","critical_count":0,"findings":[]}\n' "${FAKE_GRADE:-A}" ;;
-  *judge*) echo '{"recommendation":"done","reason":"ok","must_fix":[],"can_defer":[],"next_step":"n","engineer_type":"generic","spot_check_required":false}' ;;
-esac
-FAKESCRIPT3
+            {
+              echo '#!/usr/bin/env bash'
+              echo 'schema_file=""'
+              echo 'while [ "$#" -gt 0 ]; do'
+              echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+              echo 'done'
+              echo 'case "${schema_file}" in'
+              echo '  *reviewer*) printf '"'"'{"summary":"t","overall_grade":"%s","critical_count":0,"findings":[]}\n'"'"' "${FAKE_GRADE:-A}" ;;'
+              echo '  *judge*) echo '"'"'{"recommendation":"done","reason":"ok","must_fix":[],"can_defer":[],"next_step":"n","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+              echo 'esac'
+            } > "${fake_bin}/codex"
             chmod +x "${fake_bin}/codex"
             export FAKE_GRADE="B"
             jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
@@ -236,17 +236,17 @@ FAKESCRIPT3
           target="$(mktemp -d)"
           ./setup.sh --target "${target}" --force
           fake_bin="$(mktemp -d)"
-          cat > "${fake_bin}/codex" <<'FAKESCRIPT'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*) echo '{"summary":"test","overall_grade":"A","critical_count":1,"findings":[{"file":"a.ts","severity":"critical","title":"NULL","reason":"null check","suggested_fix":"fix"}]}' ;;
-  *judge*) echo '{"recommendation":"fix","reason":"critical","must_fix":["NULL"],"can_defer":[],"next_step":"fix","engineer_type":"security","spot_check_required":false}' ;;
-esac
-FAKESCRIPT
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'schema_file=""'
+            echo 'while [ "$#" -gt 0 ]; do'
+            echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+            echo 'done'
+            echo 'case "${schema_file}" in'
+            echo '  *reviewer*) echo '"'"'{"summary":"test","overall_grade":"A","critical_count":1,"findings":[{"file":"a.ts","severity":"critical","title":"NULL","reason":"null check","suggested_fix":"fix"}]}'"'"' ;;'
+            echo '  *judge*) echo '"'"'{"recommendation":"fix","reason":"critical","must_fix":["NULL"],"can_defer":[],"next_step":"fix","engineer_type":"security","spot_check_required":false}'"'"' ;;'
+            echo 'esac'
+          } > "${fake_bin}/codex"
           chmod +x "${fake_bin}/codex"
           export PATH="${fake_bin}:${PATH}"
           (
@@ -309,17 +309,17 @@ FAKESCRIPT
           target="$(mktemp -d)"
           ./setup.sh --target "${target}" --force
           fake_bin="$(mktemp -d)"
-          cat > "${fake_bin}/codex" <<'FAKESCRIPT'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*) echo '{"summary":"test","overall_grade":"A","critical_count":1,"findings":[{"file":"a.ts","severity":"critical","title":"NULL","reason":"null check","suggested_fix":"fix"}]}' ;;
-  *judge*) echo '{"recommendation":"fix","reason":"critical","must_fix":["NULL"],"can_defer":[],"next_step":"fix","engineer_type":"generic","spot_check_required":false}' ;;
-esac
-FAKESCRIPT
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'schema_file=""'
+            echo 'while [ "$#" -gt 0 ]; do'
+            echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+            echo 'done'
+            echo 'case "${schema_file}" in'
+            echo '  *reviewer*) echo '"'"'{"summary":"test","overall_grade":"A","critical_count":1,"findings":[{"file":"a.ts","severity":"critical","title":"NULL","reason":"null check","suggested_fix":"fix"}]}'"'"' ;;'
+            echo '  *judge*) echo '"'"'{"recommendation":"fix","reason":"critical","must_fix":["NULL"],"can_defer":[],"next_step":"fix","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+            echo 'esac'
+          } > "${fake_bin}/codex"
           chmod +x "${fake_bin}/codex"
           export PATH="${fake_bin}:${PATH}"
           (
@@ -367,17 +367,17 @@ FAKESCRIPT
           target="$(mktemp -d)"
           ./setup.sh --target "${target}" --force
           fake_bin="$(mktemp -d)"
-          cat > "${fake_bin}/codex" <<'FAKESCRIPT'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*) echo '{"summary":"clean","overall_grade":"S","critical_count":0,"findings":[]}' ;;
-  *judge*) echo '{"recommendation":"done","reason":"完了","must_fix":[],"can_defer":[],"next_step":"none","engineer_type":"generic","spot_check_required":false}' ;;
-esac
-FAKESCRIPT
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'schema_file=""'
+            echo 'while [ "$#" -gt 0 ]; do'
+            echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+            echo 'done'
+            echo 'case "${schema_file}" in'
+            echo '  *reviewer*) echo '"'"'{"summary":"clean","overall_grade":"S","critical_count":0,"findings":[]}'"'"' ;;'
+            echo '  *judge*) echo '"'"'{"recommendation":"done","reason":"完了","must_fix":[],"can_defer":[],"next_step":"none","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+            echo 'esac'
+          } > "${fake_bin}/codex"
           chmod +x "${fake_bin}/codex"
           export PATH="${fake_bin}:${PATH}"
           (
@@ -411,17 +411,17 @@ FAKESCRIPT
             .totonoe/bin/apply_manager_decision.sh --job-name lt2 --decision done --lesson "E2E教訓"
             test "$(jq -r '.status' .totonoe/runtime/lt2/state.json)" = "done"
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT lesson FROM lessons WHERE job_name = "lt2";')" = "E2E教訓"
-            cat > "${fake_bin}/codex" <<'FAKESCRIPT2'
-#!/usr/bin/env bash
-schema_file=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac
-done
-case "${schema_file}" in
-  *reviewer*) echo '{"summary":"bad","overall_grade":"C","critical_count":2,"findings":[{"file":"a.ts","severity":"critical","title":"b1","reason":"r","suggested_fix":"f"},{"file":"b.ts","severity":"critical","title":"b2","reason":"r","suggested_fix":"f"}]}' ;;
-  *judge*) echo '{"recommendation":"fix","reason":"要修正","must_fix":["b1"],"can_defer":[],"next_step":"修正","engineer_type":"generic","spot_check_required":false}' ;;
-esac
-FAKESCRIPT2
+            {
+              echo '#!/usr/bin/env bash'
+              echo 'schema_file=""'
+              echo 'while [ "$#" -gt 0 ]; do'
+              echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+              echo 'done'
+              echo 'case "${schema_file}" in'
+              echo '  *reviewer*) echo '"'"'{"summary":"bad","overall_grade":"C","critical_count":2,"findings":[{"file":"a.ts","severity":"critical","title":"b1","reason":"r","suggested_fix":"f"},{"file":"b.ts","severity":"critical","title":"b2","reason":"r","suggested_fix":"f"}]}'"'"' ;;'
+              echo '  *judge*) echo '"'"'{"recommendation":"fix","reason":"要修正","must_fix":["b1"],"can_defer":[],"next_step":"修正","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+              echo 'esac'
+            } > "${fake_bin}/codex"
             chmod +x "${fake_bin}/codex"
             .totonoe/bin/init_job.sh --job-name lt3 --goal-template feature_loop --with-knowledge --force
             printf 'summary\n' > .totonoe/runtime/lt3/summary.md
