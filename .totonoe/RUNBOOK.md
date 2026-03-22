@@ -45,6 +45,19 @@ provider 状態も一緒に見たい場合:
 .totonoe/bin/render_loop_prompt.sh --job-name sample-feature
 ```
 
+## PreCompact 時の自動 pause
+
+Claude Code のコンテキスト圧縮（PreCompact）が発火すると、hooks/precompact.sh が active ジョブを自動で paused にする。圧縮後にジョブ名やフェーズを忘れても state.json から復元できる。
+
+再開手順:
+
+```bash
+.totonoe/bin/resume_job.sh --job-name sample-feature
+.totonoe/bin/render_loop_prompt.sh --job-name sample-feature
+```
+
+`render_loop_prompt.sh` だけでは paused は解除されない。必ず `resume_job.sh` を先に実行すること。
+
 ## 3. Engineer がラウンドを記録する
 
 ```bash

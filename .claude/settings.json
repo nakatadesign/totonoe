@@ -2,6 +2,13 @@
   "experiments": {
     "agentTeams": true
   },
+  "hooks": {
+    "PreCompact": [
+      {
+        "command": ".totonoe/bin/hooks/precompact.sh"
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(.totonoe/bin/init_job.sh:*)",
@@ -15,7 +22,9 @@
       "Bash(.totonoe/bin/reset_provider.sh:*)",
       "Bash(.totonoe/bin/apply_manager_decision.sh:*)",
       "Bash(.totonoe/bin/render_loop_prompt.sh:*)",
-      "Bash(.totonoe/bin/templates.sh:*)"
+      "Bash(.totonoe/bin/templates.sh:*)",
+      "Bash(.totonoe/bin/find_active_job.sh:*)",
+      "Bash(.totonoe/bin/hooks/precompact.sh:*)"
     ]
   }
 }

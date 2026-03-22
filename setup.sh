@@ -65,6 +65,7 @@ migrate_v2() {
   cp "${SOURCE_TOTONOE_DIR}/README.md" "${new_dir}/README.md"
   cp "${SOURCE_TOTONOE_DIR}/SUPERVISOR.md" "${new_dir}/SUPERVISOR.md"
   chmod +x "${new_dir}"/bin/*.sh
+  find "${new_dir}/bin/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
   # 2. 既存データを移行（runtime/, knowledge.db*, config.json）
   [ -d "${old_dir}/runtime" ] && mv "${old_dir}/runtime" "${new_dir}/runtime"
@@ -177,6 +178,7 @@ main() {
   mkdir -p "${target_repo}"
   cp -R "${SOURCE_TOTONOE_DIR}" "${target_repo}/.totonoe"
   chmod +x "${target_repo}"/.totonoe/bin/*.sh
+  find "${target_repo}/.totonoe/bin/hooks" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
   printf 'copied: %s\n' "${target_repo}/.totonoe"
 
   copy_file_if_needed \

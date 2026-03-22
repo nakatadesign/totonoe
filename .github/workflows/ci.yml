@@ -24,7 +24,7 @@ jobs:
         run: |
           bash -n setup.sh
           bash -n .totonoe/bin/*.sh
-
+          bash -n .totonoe/bin/hooks/*.sh
       - name: Validate SQL migrations (sequential apply)
         run: |
           db="$(mktemp)"
@@ -608,4 +608,49 @@ FAKESCRIPT2
             cd "${target}"
             .totonoe/bin/init_job.sh --job-name gitfile-test --goal-text "git file test" --force
             .totonoe/bin/status.sh --job-name gitfile-test --json >/dev/null
+          )
+      - name: Smoke test find_active_job and precompact hook
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+          (
+            cd "${target}"
+
+            # ケース1: active ジョブなし → find_active_job は exit 1
+            result=0
+            .totonoe/bin/find_active_job.sh > /dev/null 2>&1 || result=$?
+            test "${result}" -eq 1
+
+            # ケース2: active ジョブなし → precompact は exit 0（何もしない）
+            .totonoe/bin/hooks/precompact.sh
+            test $? -eq 0
+
+            # ケース3: init 後 → precompact で paused に遷移
+            .totonoe/bin/init_job.sh --job-name pc-test --goal-text "precompact ci"
+            status="$(jq -r '.status' .totonoe/runtime/pc-test/state.json)"
+            test "${status}" = "init"
+
+            found="$(.totonoe/bin/find_active_job.sh)"
+            test "${found}" = "pc-test"
+
+            .totonoe/bin/hooks/precompact.sh
+            status="$(jq -r '.status' .totonoe/runtime/pc-test/state.json)"
+            test "${status}" = "paused"
+            reason="$(jq -r '.pause.reason' .totonoe/runtime/pc-test/state.json)"
+            echo "${reason}" | grep -q "PreCompact"
+            prev="$(jq -r '.pause.previous_status' .totonoe/runtime/pc-test/state.json)"
+            test "${prev}" = "init"
+
+            # paused 後は find_active_job が exit 1
+            result=0
+            .totonoe/bin/find_active_job.sh > /dev/null 2>&1 || result=$?
+            test "${result}" -eq 1
+
+            # 再度 precompact しても exit 0（既に paused）
+            .totonoe/bin/hooks/precompact.sh
+            test $? -eq 0
+
+            # hooks が実行可能であること
+            test -x .totonoe/bin/hooks/precompact.sh
+            test -x .totonoe/bin/find_active_job.sh
           )

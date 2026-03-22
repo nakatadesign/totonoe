@@ -27,6 +27,19 @@ job 名が分かっている場合は `.totonoe/bin/pause_job.sh --job-name <cur
 - **Engineer**（`.claude/agents/GENERIC-ENGINEER.md` を基点に、専門エンジニアへ振り分け）: 実装専任
 - **Reviewer**（`run_reviewer.sh` + `AGENTS.md`）: 読み取り専用でレビューを行う
 
+### PreCompact 発火時の動作
+
+Claude Code のコンテキスト圧縮（PreCompact）が発火すると、`.totonoe/bin/hooks/precompact.sh` が自動実行される。
+このフックは active なジョブを検出し、`pause_job.sh` で `paused` に遷移させる。圧縮後にジョブ名やフェーズを忘れても、`state.json` に停止理由と直前の状態が残る。
+
+**圧縮後の再開手順**:
+
+1. `resume_job.sh --job-name <job>` で paused を解除する
+2. `render_loop_prompt.sh --job-name <job>` でループプロンプトを再生成する
+3. その出力を Claude Code に貼り付けて続行する
+
+`render_loop_prompt.sh` だけでは paused は解除されない。必ず `resume_job.sh` を先に実行すること。
+
 ### `totonoe start` 受信後の動作
 
 有効なジョブがある場合、各ステップで以下を行います。
