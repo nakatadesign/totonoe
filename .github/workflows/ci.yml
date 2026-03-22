@@ -145,7 +145,7 @@ jobs:
             .totonoe/bin/run_judge.sh --job-name write-test --force
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM verdicts;')" = "1"
             export FAKE_GRADE="C"
-            jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
+            jq '.status = "init" | .current_round = 1' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
             printf 'summary\n' > .totonoe/runtime/write-test/summary.md
             .totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp2=".totonoe/runtime/write-test/rounds/002"
@@ -153,7 +153,7 @@ jobs:
             .totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds;')" = "1"
             export FAKE_GRADE="B"
-            jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
+            jq '.status = "init" | .current_round = 2' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
             printf 'summary\n' > .totonoe/runtime/write-test/summary.md
             .totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp3=".totonoe/runtime/write-test/rounds/003"
@@ -161,7 +161,7 @@ jobs:
             .totonoe/bin/run_reviewer.sh --job-name write-test
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM review_rounds WHERE overall_grade = "B";')" = "1"
             jq '.knowledge.quality_threshold_count = 1' .totonoe/config.json > /tmp/_cfg.json && mv /tmp/_cfg.json .totonoe/config.json
-            jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
+            jq '.status = "init" | .current_round = 3' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
             printf 'summary\n' > .totonoe/runtime/write-test/summary.md
             .totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp4=".totonoe/runtime/write-test/rounds/004"
@@ -181,7 +181,7 @@ jobs:
               echo 'esac'
             } > "${fake_bin}/codex"
             chmod +x "${fake_bin}/codex"
-            jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
+            jq '.status = "init" | .current_round = 4' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
             printf 'summary\n' > .totonoe/runtime/write-test/summary.md
             .totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp5=".totonoe/runtime/write-test/rounds/005"
@@ -208,7 +208,7 @@ jobs:
             } > "${fake_bin}/codex"
             chmod +x "${fake_bin}/codex"
             export FAKE_GRADE="B"
-            jq '.status = "init" | .current_round = 0' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
+            jq '.status = "init" | .current_round = 5' .totonoe/runtime/write-test/state.json > /tmp/_st.json && mv /tmp/_st.json .totonoe/runtime/write-test/state.json
             printf 'summary\n' > .totonoe/runtime/write-test/summary.md
             .totonoe/bin/record_claude_round.sh --job-name write-test --summary-file .totonoe/runtime/write-test/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
             rp6=".totonoe/runtime/write-test/rounds/006"
