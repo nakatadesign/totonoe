@@ -47,7 +47,7 @@ main() {
 
   # failed_attempt 知見を取得する（knowledge 有効時のみ）
   local failed_attempts=""
-  if [ -f "${KNOWLEDGE_DB}" ]; then
+  if should_write_knowledge "${job_name}" 2>/dev/null; then
     failed_attempts="$("${BIN_DIR}/query_knowledge.sh" --type lesson_entries --kind failed_attempt --job-name "${job_name}" --limit 5 2>/dev/null)" || true
   fi
 

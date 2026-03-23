@@ -475,6 +475,9 @@ jobs:
             .totonoe/bin/query_knowledge.sh --type lesson_entries --kind failed_attempt --job-name le-ci | grep -q "failed_attempt"
             .totonoe/bin/render_loop_prompt.sh --job-name le-ci | grep -q "過去の試行で失敗した内容"
             .totonoe/bin/render_loop_prompt.sh --job-name le-ci | grep -q "CI修正テスト"
+            # content に round と decision が含まれること
+            sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE job_name = "le-ci";' | grep -q "round 1"
+            sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE job_name = "le-ci";' | grep -q "fix"
             .totonoe/bin/init_job.sh --job-name le-nokn --goal-template feature_loop --force
             printf 'summary\n' > .totonoe/runtime/le-nokn/summary.md
             .totonoe/bin/record_claude_round.sh --job-name le-nokn --summary-file .totonoe/runtime/le-nokn/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
@@ -484,6 +487,10 @@ jobs:
             .totonoe/bin/apply_manager_decision.sh --job-name le-nokn --record-spot-check
             .totonoe/bin/apply_manager_decision.sh --job-name le-nokn --decision fix --reason "no-kn fix"
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM lesson_entries WHERE job_name = "le-nokn";')" = "0"
+            # knowledge 無効ジョブでは render に failed_attempt が注入されないこと
+            if .totonoe/bin/render_loop_prompt.sh --job-name le-nokn | grep -q "過去の試行で失敗した内容"; then
+              echo "FAIL: injected failed_attempt into non-knowledge job" >&2; exit 1
+            fi
             {
               echo '#!/usr/bin/env bash'
               echo 'schema_file=""'
@@ -505,7 +512,9 @@ jobs:
             .totonoe/bin/apply_manager_decision.sh --job-name le-human --record-spot-check
             .totonoe/bin/apply_manager_decision.sh --job-name le-human --decision human --reason "アーキ判断必要"
             test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";')" = "1"
-            test "$(sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";')" = "アーキ判断必要"
+            sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";' | grep -q "round 1"
+            sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";' | grep -q "human escalation"
+            sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";' | grep -q "アーキ判断必要"
           )
 
       - name: Smoke test shadow status generation
