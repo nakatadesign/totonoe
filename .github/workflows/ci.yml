@@ -77,12 +77,13 @@ jobs:
             .totonoe/bin/init_knowledge.sh
             test -f .totonoe/knowledge.db
             ver="$(sqlite3 .totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')"
-            test "${ver}" = "2"
+            test "${ver}" = "3"
             tables="$(sqlite3 .totonoe/knowledge.db ".tables")"
             echo "${tables}" | grep -q "review_rounds"
             echo "${tables}" | grep -q "review_findings"
             echo "${tables}" | grep -q "verdicts"
             echo "${tables}" | grep -q "lessons"
+            echo "${tables}" | grep -q "lesson_entries"
             echo "${tables}" | grep -q "schema_version"
             sqlite3 .totonoe/knowledge.db "SELECT resolved FROM review_findings LIMIT 0;"
             mode="$(sqlite3 .totonoe/knowledge.db 'PRAGMA journal_mode;')"
@@ -90,7 +91,7 @@ jobs:
             .totonoe/bin/init_knowledge.sh
             .totonoe/bin/init_knowledge.sh --force
             ver2="$(sqlite3 .totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')"
-            test "${ver2}" = "2"
+            test "${ver2}" = "3"
           )
 
       - name: Smoke test knowledge write layer
