@@ -5,7 +5,13 @@
   "hooks": {
     "PreCompact": [
       {
-        "command": ".totonoe/bin/hooks/precompact.sh"
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".totonoe/bin/hooks/precompact.sh"
+          }
+        ]
       }
     ]
   },

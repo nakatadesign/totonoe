@@ -2,7 +2,7 @@
 
 **AIエージェントが実装・評価を分担する開発ループ設計**
 
-現在の安定版は **v3.1.0** です。v3.1 では PreCompact フックを追加し、Claude Code のコンテキスト圧縮時に active ジョブを自動で paused にする機能を導入しました。
+現在の安定版は **v3.1.1** です。v3.1.1 では PreCompact hook の schema を Claude Code が受け付ける `matcher + hooks[]` 形式へ修正し、Settings Error を解消しました。v3.1 では PreCompact フックを追加し、Claude Code のコンテキスト圧縮時に active ジョブを自動で paused にする機能を導入しました。
 v3 では runtime core を `.claude/totonoe/` から `.totonoe/` へ移動し、Claude Code の permission UX との衝突を解消しています。既存ユーザーは `setup.sh --migrate-v2` で自動移行できます。
 
 開発作業を整える `totonoe` は、Claude Code（実装）と Codex CLI（評価）の役割を分離した Bash ベースの開発ループテンプレートです。
