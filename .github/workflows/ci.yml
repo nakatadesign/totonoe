@@ -440,6 +440,74 @@ jobs:
             .totonoe/bin/query_knowledge.sh --type lessons --max-chars 10 | grep -q "truncated"
           )
 
+      - name: Smoke test lesson_entries and failed_attempt injection
+        run: |
+          target="$(mktemp -d)"
+          ./setup.sh --target "${target}" --force
+          fake_bin="$(mktemp -d)"
+          {
+            echo '#!/usr/bin/env bash'
+            echo 'schema_file=""'
+            echo 'while [ "$#" -gt 0 ]; do'
+            echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+            echo 'done'
+            echo 'case "${schema_file}" in'
+            echo '  *reviewer*) echo '"'"'{"summary":"問題あり","overall_grade":"C","critical_count":1,"findings":[{"file":"a.ts","severity":"critical","title":"バグ","reason":"修正必要","suggested_fix":"f"}]}'"'"' ;;'
+            echo '  *judge*) echo '"'"'{"recommendation":"fix","reason":"要修正","must_fix":["バグ"],"can_defer":[],"next_step":"修正","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+            echo 'esac'
+          } > "${fake_bin}/codex"
+          chmod +x "${fake_bin}/codex"
+          export PATH="${fake_bin}:${PATH}"
+          (
+            cd "${target}"
+            .totonoe/bin/init_job.sh --job-name le-ci --goal-template feature_loop --with-knowledge
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')" = "3"
+            sqlite3 .totonoe/knowledge.db ".tables" | grep -q "lesson_entries"
+            printf 'summary\n' > .totonoe/runtime/le-ci/summary.md
+            .totonoe/bin/record_claude_round.sh --job-name le-ci --summary-file .totonoe/runtime/le-ci/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .totonoe/runtime/le-ci/rounds/001/snapshot && echo "d" > .totonoe/runtime/le-ci/rounds/001/snapshot/setup.sh
+            .totonoe/bin/run_reviewer.sh --job-name le-ci
+            .totonoe/bin/run_judge.sh --job-name le-ci
+            .totonoe/bin/apply_manager_decision.sh --job-name le-ci --record-spot-check
+            .totonoe/bin/apply_manager_decision.sh --job-name le-ci --decision fix --reason "CI修正テスト"
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM lesson_entries WHERE kind = "failed_attempt" AND job_name = "le-ci";')" = "1"
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT round FROM lesson_entries WHERE job_name = "le-ci";')" = "1"
+            .totonoe/bin/query_knowledge.sh --type lesson_entries --kind failed_attempt --job-name le-ci | grep -q "failed_attempt"
+            .totonoe/bin/render_loop_prompt.sh --job-name le-ci | grep -q "過去の試行で失敗した内容"
+            .totonoe/bin/render_loop_prompt.sh --job-name le-ci | grep -q "CI修正テスト"
+            .totonoe/bin/init_job.sh --job-name le-nokn --goal-template feature_loop --force
+            printf 'summary\n' > .totonoe/runtime/le-nokn/summary.md
+            .totonoe/bin/record_claude_round.sh --job-name le-nokn --summary-file .totonoe/runtime/le-nokn/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .totonoe/runtime/le-nokn/rounds/001/snapshot && echo "d" > .totonoe/runtime/le-nokn/rounds/001/snapshot/setup.sh
+            .totonoe/bin/run_reviewer.sh --job-name le-nokn
+            .totonoe/bin/run_judge.sh --job-name le-nokn
+            .totonoe/bin/apply_manager_decision.sh --job-name le-nokn --record-spot-check
+            .totonoe/bin/apply_manager_decision.sh --job-name le-nokn --decision fix --reason "no-kn fix"
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM lesson_entries WHERE job_name = "le-nokn";')" = "0"
+            {
+              echo '#!/usr/bin/env bash'
+              echo 'schema_file=""'
+              echo 'while [ "$#" -gt 0 ]; do'
+              echo '  case "$1" in --output-schema) schema_file="$2"; shift 2 ;; *) shift ;; esac'
+              echo 'done'
+              echo 'case "${schema_file}" in'
+              echo '  *reviewer*) echo '"'"'{"summary":"ok","overall_grade":"B","critical_count":0,"findings":[]}'"'"' ;;'
+              echo '  *judge*) echo '"'"'{"recommendation":"human","reason":"人間判断","must_fix":[],"can_defer":[],"next_step":"確認","engineer_type":"generic","spot_check_required":false}'"'"' ;;'
+              echo 'esac'
+            } > "${fake_bin}/codex"
+            chmod +x "${fake_bin}/codex"
+            .totonoe/bin/init_job.sh --job-name le-human --goal-template feature_loop --with-knowledge --force
+            printf 'summary\n' > .totonoe/runtime/le-human/summary.md
+            .totonoe/bin/record_claude_round.sh --job-name le-human --summary-file .totonoe/runtime/le-human/summary.md --changed-file setup.sh --quality-analyze passed --quality-test skipped
+            mkdir -p .totonoe/runtime/le-human/rounds/001/snapshot && echo "d" > .totonoe/runtime/le-human/rounds/001/snapshot/setup.sh
+            .totonoe/bin/run_reviewer.sh --job-name le-human
+            .totonoe/bin/run_judge.sh --job-name le-human
+            .totonoe/bin/apply_manager_decision.sh --job-name le-human --record-spot-check
+            .totonoe/bin/apply_manager_decision.sh --job-name le-human --decision human --reason "アーキ判断必要"
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT COUNT(*) FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";')" = "1"
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT content FROM lesson_entries WHERE kind = "human_escalation_reason" AND job_name = "le-human";')" = "アーキ判断必要"
+          )
+
       - name: Smoke test shadow status generation
         run: |
           target="$(mktemp -d)"

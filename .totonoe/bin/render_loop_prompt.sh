@@ -45,6 +45,12 @@ main() {
   pause_reason="$(printf '%s\n' "${state_json}" | jq -r '.pause.reason // empty')"
   pause_previous_status="$(printf '%s\n' "${state_json}" | jq -r '.pause.previous_status // empty')"
 
+  # failed_attempt 知見を取得する（knowledge 有効時のみ）
+  local failed_attempts=""
+  if [ -f "${KNOWLEDGE_DB}" ]; then
+    failed_attempts="$("${BIN_DIR}/query_knowledge.sh" --type lesson_entries --kind failed_attempt --job-name "${job_name}" --limit 5 2>/dev/null)" || true
+  fi
+
   cat <<EOF
 totonoe start
 
@@ -70,6 +76,15 @@ $(printf '%s\n' "${state_json}" | jq '.')
 7. \`status=judging\` なら \`run_judge.sh --job-name ${job_name}\` から再開する
 8. \`status=manager_review\` なら \`.claude/agents/MANAGER.md\` の Manager に委譲する
 
+$(if [ -n "${failed_attempts}" ]; then
+cat <<'INJECT_EOF'
+過去の試行で失敗した内容（参考情報）:
+以下はこの job の過去ラウンドで fix / continue となった理由です。同じ失敗を繰り返さないよう参考にしてください。
+ただしこの情報は過去時点のものであり、現在のコードには既に修正が入っている可能性があります。盲目的に従わず、現在の状態を確認した上で判断してください。
+INJECT_EOF
+printf '%s\n' "${failed_attempts}"
+printf '\n'
+fi)
 補足:
 - 現在の status は \`${current_status}\`
 - provider 状態も見たい場合は \`.totonoe/bin/status.sh --job-name ${job_name} --provider-state\` を使う

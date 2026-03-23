@@ -4,6 +4,7 @@
 # 使用法:
 #   query_knowledge.sh --type findings [--severity critical] [--job-name xxx] [--limit N] [--max-chars N]
 #   query_knowledge.sh --type verdicts [--engineer-type security] [--limit N] [--max-chars N]
+#   query_knowledge.sh --type lesson_entries [--kind failed_attempt] [--job-name xxx] [--limit N] [--max-chars N]
 #   query_knowledge.sh --type summary [--max-chars N]
 #
 # 出力形式: プロンプトに埋め込みやすいプレーンテキスト（stdout）
@@ -138,6 +139,44 @@ _query_lessons() {
     '"- [\(.job_name)] \(.lesson)"'
 }
 
+# --- lesson_entries クエリ ---
+_query_lesson_entries() {
+  local limit="$1"
+  local kind_filter="$2"
+  local job_name_filter="$3"
+
+  local where="1=1"
+  if [ -n "${kind_filter}" ]; then
+    local q_kind
+    q_kind="$(_sql_quote "${kind_filter}")"
+    where="${where} AND kind = ${q_kind}"
+  fi
+  if [ -n "${job_name_filter}" ]; then
+    local q_jn
+    q_jn="$(_sql_quote "${job_name_filter}")"
+    where="${where} AND job_name = ${q_jn}"
+  fi
+
+  local json_rows
+  json_rows="$(_kdb_exec "
+    SELECT json_object(
+      'job_name', job_name,
+      'kind', kind,
+      'content', content,
+      'round', round
+    )
+    FROM lesson_entries
+    WHERE ${where}
+    ORDER BY created_at DESC
+    LIMIT ${limit};
+  ")"
+
+  [ -n "${json_rows}" ] || return 1
+
+  printf '%s\n' "${json_rows}" | jq -r \
+    '"- [\(.kind)] \(.content) (job: \(.job_name), round: \(.round))"'
+}
+
 # --- summary クエリ ---
 _query_summary() {
   local job_count round_count grade_dist severity_top engineer_top
@@ -186,6 +225,7 @@ main() {
   local severity=""
   local job_name_filter=""
   local engineer_type=""
+  local kind=""
 
   while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -213,6 +253,10 @@ main() {
         engineer_type="${2:-}"
         shift 2
         ;;
+      --kind)
+        kind="${2:-}"
+        shift 2
+        ;;
       --help|-h)
         sed -n '2,/^$/s/^# \?//p' "${BASH_SOURCE[0]}"
         exit 0
@@ -223,7 +267,7 @@ main() {
     esac
   done
 
-  [ -n "${query_type}" ] || die "--type は必須です（findings / verdicts / lessons / summary）"
+  [ -n "${query_type}" ] || die "--type は必須です（findings / verdicts / lessons / lesson_entries / summary）"
 
   # 引数検証
   [[ "${limit}" =~ ^[0-9]+$ ]] && [ "${limit}" -gt 0 ] \
@@ -249,11 +293,14 @@ main() {
     lessons)
       output="$(_query_lessons "${limit}")" || exit 1
       ;;
+    lesson_entries)
+      output="$(_query_lesson_entries "${limit}" "${kind}" "${job_name_filter}")" || exit 1
+      ;;
     summary)
       output="$(_query_summary)" || exit 1
       ;;
     *)
-      die "不明な --type: ${query_type}（findings / verdicts / lessons / summary のいずれか）"
+      die "不明な --type: ${query_type}（findings / verdicts / lessons / lesson_entries / summary のいずれか）"
       ;;
   esac
 

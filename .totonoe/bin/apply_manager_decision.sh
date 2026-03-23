@@ -252,6 +252,24 @@ main() {
         reason: $reason
       }')"
 
+  # fix / continue / human 決定時に lesson_entries へ知見を記録する
+  if should_write_knowledge "${job_name}" 2>/dev/null; then
+    local q_jn q_content
+    q_jn="$(_sql_quote "${job_name}")"
+    case "${final_decision}" in
+      fix|continue)
+        q_content="$(_sql_quote "${final_reason}")"
+        _kdb_exec "INSERT INTO lesson_entries (job_name, kind, content, round) VALUES (${q_jn}, 'failed_attempt', ${q_content}, ${current_round});" \
+          || warn "lesson_entries の書き込みに失敗しました (failed_attempt)"
+        ;;
+      human)
+        q_content="$(_sql_quote "${final_reason}")"
+        _kdb_exec "INSERT INTO lesson_entries (job_name, kind, content, round) VALUES (${q_jn}, 'human_escalation_reason', ${q_content}, ${current_round});" \
+          || warn "lesson_entries の書き込みに失敗しました (human_escalation_reason)"
+        ;;
+    esac
+  fi
+
   release_job_lock
 
   # done 確定後に learn.sh を呼ぶ（lock 解放後に実行する）
