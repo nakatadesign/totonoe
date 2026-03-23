@@ -383,8 +383,9 @@ jobs:
           (
             cd "${target}"
             .totonoe/bin/init_job.sh --job-name lt --goal-template feature_loop --with-knowledge
-            test "$(sqlite3 .totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')" = "2"
+            test "$(sqlite3 .totonoe/knowledge.db 'SELECT MAX(version) FROM schema_version;')" = "3"
             sqlite3 .totonoe/knowledge.db ".tables" | grep -q "lessons"
+            sqlite3 .totonoe/knowledge.db ".tables" | grep -q "lesson_entries"
             sqlite3 .totonoe/knowledge.db "PRAGMA foreign_keys=ON;
               INSERT INTO review_rounds (job_name, round, overall_grade, critical_count, summary) VALUES ('lt', 1, 'A', 1, 'test');
               INSERT INTO review_findings (review_round_id, job_name, round, file, severity, title, reason) VALUES (1, 'lt', 1, 'a.ts', 'high', 'bug', 'reason');"
