@@ -7,7 +7,7 @@ Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fall
 
 同じ AI に自分の出力を採点させない——「セルフ採点問題」を構造で解決します。品質基準を満たすまでループは続き、完了の判断は厳格な条件だけが下します。
 
-現在の安定版は **v3.2.0** です。v3.2 では `lesson_entries` テーブルを追加し、過去ラウンドの失敗理由を Engineer に自動注入する knowledge 再利用の土台を導入しました。v3.1 では PreCompact フックを追加し、Claude Code のコンテキスト圧縮時に active ジョブを自動で paused にする機能を導入しました。
+現在の安定版は **v3.2.1** です。v3.2 では `lesson_entries` テーブルを追加し、過去ラウンドの失敗理由を Engineer に自動注入する knowledge 再利用の土台を導入しました。v3.1 では PreCompact フックを追加し、Claude Code のコンテキスト圧縮時に active ジョブを自動で paused にする機能を導入しました。
 v3 では runtime core を `.claude/totonoe/` から `.totonoe/` へ移動し、Claude Code の permission UX との衝突を解消しています。既存ユーザーは `setup.sh --migrate-v2` で自動移行できます。
 
 ---
