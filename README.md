@@ -2,13 +2,13 @@
 
 **AIエージェントが実装・評価を分担する開発ループ設計**
 
-現在の安定版は **v3.1.1** です。v3.1.1 では PreCompact hook の schema を Claude Code が受け付ける `matcher + hooks[]` 形式へ修正し、Settings Error を解消しました。v3.1 では PreCompact フックを追加し、Claude Code のコンテキスト圧縮時に active ジョブを自動で paused にする機能を導入しました。
-v3 では runtime core を `.claude/totonoe/` から `.totonoe/` へ移動し、Claude Code の permission UX との衝突を解消しています。既存ユーザーは `setup.sh --migrate-v2` で自動移行できます。
-
 開発作業を整える `totonoe` は、Claude Code（実装）と Codex CLI（評価）の役割を分離した Bash ベースの開発ループテンプレートです。
 Gemini はオプション対応——Codex 枯渇時の自動引き継ぎ（fallback）と、評価を並走比較する shadow mode として利用できます。
 
 同じ AI に自分の出力を採点させない——「セルフ採点問題」を構造で解決します。品質基準を満たすまでループは続き、完了の判断は厳格な条件だけが下します。
+
+現在の安定版は **v3.1.1** です。v3.1.1 では PreCompact hook の schema を Claude Code が受け付ける `matcher + hooks[]` 形式へ修正し、Settings Error を解消しました。v3.1 では PreCompact フックを追加し、Claude Code のコンテキスト圧縮時に active ジョブを自動で paused にする機能を導入しました。
+v3 では runtime core を `.claude/totonoe/` から `.totonoe/` へ移動し、Claude Code の permission UX との衝突を解消しています。既存ユーザーは `setup.sh --migrate-v2` で自動移行できます。
 
 ---
 
